@@ -1,0 +1,56 @@
+name: Publish LocalSunset
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit public source
+        run: python tools/audit_public.py
+      - name: Verify browser calculations and display regressions
+        run: for test in tests/test_*.js; do node "$test"; done
+      - name: Build clean browser site and Raspberry Pi source archive
+        run: |
+          python tools/build_browser.py
+          python tools/package_pi.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/browser
+      - name: Save downloadable editions
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalSunset-downloads
+          path: dist/*.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy browser edition
+        id: deployment
+        uses: actions/deploy-pages@v4

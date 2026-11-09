@@ -1,0 +1,12 @@
+var fs=require('fs'),vm=require('vm'),assert=require('assert');
+var source=fs.readFileSync('static/app.js','utf8'),storage={},nodes={};
+['lat','lon','height','date','radius','zoom','source','eventMode','search'].forEach(id=>nodes[id]={value:id==='eventMode'?'sunset':''});
+var key=JSON.stringify({lat:39,lon:-105,height:3,date:'2026-11-08',radius:60,zoom:11,source:'auto'});
+var result={terrain:{horizon:[1,2]},timeline:[{t:10},{t:20}],sunset:{utc:'2026-11-08T23:10:00Z'}};
+var shown=0,context={cacheWritesEnabled:true,realTimeView:false,updateCountdown:()=>{},result:result,resultDirty:false,renderedKey:key,displayedName:'Second place',currentTime:15,viewAzimuth:244,$:id=>nodes[id],localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v},simulationNow:()=>17,showResult:()=>shown++,updatePlaceTitle:()=>{},status:()=>{}};
+vm.createContext(context);vm.runInContext(source.slice(source.indexOf('function persistScene()'),source.indexOf('restoreScene();loadSaved();')),context);
+context.persistScene();context.persistView();context.result=null;context.currentTime=0;context.viewAzimuth=0;
+assert.equal(context.restoreScene(),true);assert.equal(context.displayedName,'Second place');assert.equal(context.currentTime,17);assert.equal(context.viewAzimuth,244);assert.equal(context.result.sunset.utc,result.sunset.utc);assert.equal(shown,1);
+context.resultDirty=true;context.result={wrong:true};context.persistScene();assert.equal(JSON.parse(storage['localsunset.lastScene.v1']).name,'Second place');
+storage['localsunset.lastScene.v1']='broken';assert.equal(context.restoreScene(),false);
+console.log('PASS: reload restores last good location, sunset, time and orientation; pending updates cannot replace it; corrupt cache ignored.');

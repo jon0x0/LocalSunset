@@ -1,0 +1,10 @@
+var fs=require('fs'),vm=require('vm'),assert=require('assert'),source=fs.readFileSync('static/app.js','utf8');
+var nodes={},calls=[],now=150000,context={realTimeView:false,realtimeRequested:false,calculationPending:false,resultDirty:true,renderedKey:JSON.stringify({lat:1,lon:2,height:3,date:'2026-11-08'}),result:{timeline:[{t:0},{t:300000}]},playing:false,currentTime:40000,controllerPage:true,remoteApplying:false,Date:{now:()=>now},
+ $:id=>nodes[id]||(nodes[id]={value:'2026-11-08',checked:true}),coordinates:()=>({lat:1,lon:2}),calculationInput:()=>({lat:1,lon:2,height:3,date:'2026-11-08'}),api:async()=>({date:'2026-11-08'}),publishLocationSelection:async()=>calls.push('select'),enableLiveSky:()=>{context.realTimeView=true;calls.push('live');},updatePlaceTitle:()=>{},updateCountdown:()=>{},persistView:()=>{},queueHDMI:()=>{},status:()=>{},calculateCurrent:async()=>{calls.push('calculate');return true;}};
+vm.createContext(context);
+vm.runInContext(source.slice(source.indexOf('function skyDaylight('),source.indexOf('function mix(')),context);
+assert.equal(context.skyDaylight(-18),0);assert.equal(context.skyDaylight(6),1);assert.ok(context.skyDaylight(-6)>context.skyDaylight(-12));
+vm.runInContext(source.slice(source.indexOf('function simulationNow()'),source.indexOf('function stableSettings(')),context);
+context.realTimeView=true;assert.equal(context.simulationNow(),150000);now=151000;assert.equal(context.simulationNow(),151000);context.realTimeView=false;assert.equal(context.simulationNow(),40000);
+vm.runInContext(source.slice(source.indexOf('async function chooseRealtime()'),source.indexOf("$('projectorLive').onclick")),context);
+(async()=>{await context.chooseRealtime();assert.equal(context.resultDirty,false);assert.equal(context.realTimeView,true);assert.deepEqual(calls,['select','live']);await context.chooseRealtime();assert.equal(context.realTimeView,false);console.log('PASS: realtime uses wall clock, clears restored-scene dirty state, selects HDMI, toggles to manual; sky brightness follows solar altitude.');})().catch(e=>{console.error(e);process.exitCode=1;});

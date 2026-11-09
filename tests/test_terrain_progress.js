@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync('static/app.js','utf8'),nodes={status:{},projectionStatus:{},terrainProgress:{hidden:true}};
+const context=vm.createContext({$:id=>nodes[id],calculationPending:false,result:{lastGood:true}});
+vm.runInContext(source.slice(source.indexOf('function status(s)'),source.indexOf('function coordinates()')),context);
+context.calculationPending=true;context.status('Downloading elevation tiles…');
+assert.equal(nodes.terrainProgress.hidden,false);assert.equal(nodes.terrainProgress.textContent,'Downloading elevation tiles…');
+context.status('Tracing terrain horizon: 12/30 sectors.');assert(nodes.terrainProgress.textContent.includes('12/30'));
+assert.equal(context.result.lastGood,true);
+context.calculationPending=false;context.status('Ready');assert.equal(nodes.terrainProgress.hidden,true);assert.equal(nodes.terrainProgress.textContent,'');
+context.calculationPending=true;context.status('Working');context.calculationPending=false;context.status('Update failed; keeping the current scene.');assert.equal(nodes.terrainProgress.hidden,true);
+assert(fs.readFileSync('static/index.html','utf8').includes('id="terrainProgress" role="status"'));
+console.log('PASS: terrain overlay follows live progress, clears on success/failure and retains the scene.');
