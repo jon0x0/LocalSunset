@@ -35,3 +35,5 @@ body.projector[data-clock12="true"] .projector-hud .projection-countdown>strong{
 
 /* Temporary progress stays readable over the last good scene, including Sky only. */
 #terrainProgress{position:absolute;z-index:20;left:50%;top:50%;transform:translate(-50%,-50%);width:max-content;max-width:85%;box-sizing:border-box;padding:18px 24px;border:1px solid #cfbc8b80;border-radius:8px;background:#102019e8;color:#fff3d6;font:500 clamp(18px,2vw,28px)/1.45 system-ui,sans-serif;text-align:center;box-shadow:0 4px 28px #0008;pointer-events:none}#terrainProgress[hidden]{display:none}body.projector #terrainProgress{position:fixed;font-size:clamp(22px,2.4vw,38px)}
+
+.project-source{display:inline-block;align-self:flex-start;margin-top:14px;padding:9px 12px;border:1px solid #8b9a77;border-radius:5px;color:#f3d3a0;font-size:13px;font-weight:600;text-decoration:none}.project-source:hover{background:#30402b}
