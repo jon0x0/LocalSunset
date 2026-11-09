@@ -164,7 +164,17 @@ const canvas=$('view'),ctx=canvas.getContext('2d');
 function setViewAzimuth(azimuth){viewAzimuth=((azimuth%360)+360)%360;draw();queueHDMI();}
 function centerSunset(){if(result)setViewAzimuth(selectedEvent()?selectedEvent().azimuth:($('eventMode').value==='sunrise'?90:270));}
 $('centerSunset').onclick=centerSunset;
+const skyTouches=new Map();let skyPinch=null;
+function rebaseSkyGesture(){
+ const points=[...skyTouches.values()];skyPinch=null;panDrag=null;
+ if(points.length>=2)skyPinch={distance:Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y),fov:VIEW_FOV};
+ else if(points.length===1)panDrag={id:points[0].id,x:points[0].x,azimuth:viewAzimuth};
+}
 canvas.addEventListener('pointerdown',event=>{
+ if(event.pointerType==='touch'){
+  if(!result)return;event.preventDefault();skyTouches.set(event.pointerId,{id:event.pointerId,x:event.clientX,y:event.clientY});rebaseSkyGesture();
+  canvas.setPointerCapture(event.pointerId);canvas.classList.add('panning');return;
+ }
  if(!result || !event.isPrimary || event.button!==0)return;
  panDrag={id:event.pointerId,x:event.clientX,azimuth:viewAzimuth};
  canvas.setPointerCapture(event.pointerId);
@@ -172,11 +182,22 @@ canvas.addEventListener('pointerdown',event=>{
  canvas.focus({preventScroll:true});
 });
 canvas.addEventListener('pointermove',event=>{
+ if(skyTouches.has(event.pointerId)){
+  event.preventDefault();skyTouches.set(event.pointerId,{id:event.pointerId,x:event.clientX,y:event.clientY});
+  if(skyPinch){const points=[...skyTouches.values()],distance=Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y);
+   if(distance>0&&skyPinch.distance>0){const slider=$('projectorFov'),fov=Math.round(Math.max(30,Math.min(120,skyPinch.fov*skyPinch.distance/distance)));if(Number(slider.value)!==fov){slider.value=fov;slider.dispatchEvent(new Event('input',{bubbles:true}));}}return;
+  }
+ }
  if(!panDrag || event.pointerId!==panDrag.id)return;
  const width=canvas.getBoundingClientRect().width;
  if(width>0)setViewAzimuth(panDrag.azimuth-(event.clientX-panDrag.x)*VIEW_FOV/width);
 });
 function endPan(event){
+ if(skyTouches.delete(event.pointerId)){
+  const pinching=!!skyPinch;rebaseSkyGesture();if(!skyTouches.size)canvas.classList.remove('panning');
+  if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+  if(pinching)$('projectorFov').dispatchEvent(new Event('change',{bubbles:true}));return;
+ }
  if(!panDrag || event.pointerId!==panDrag.id)return;
  panDrag=null;
  canvas.classList.remove('panning');
