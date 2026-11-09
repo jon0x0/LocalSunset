@@ -3,7 +3,7 @@
 <body>
 <aside>
  <div class="brand"><span class="brand-icon">◒</span> LOCAL SUNSET <span class="version">01</span></div>
- <p class="eyebrow">A DIFFERENT END TO EVERY DAY</p><h1>Find your <br>last light.</h1><p class="intro">A terrain-aware local sunrise / sunset calculator and scene viewer that runs in a browser or on a Raspberry Pi, with projector options.</p>
+ <p class="eyebrow">A DIFFERENT END TO EVERY DAY</p><h1>Find your <br>last light.</h1><p class="intro">A terrain-aware local sunrise / sunset calculator and scene viewer that runs in a browser or on a Raspberry Pi, with support for a projector.</p>
  <form id="searchForm"><label for="search">FIND A PLACE</label><div class="searchbox"><input id="search" placeholder="Street address, place, or street + ZIP" minlength="3" required><button title="Search places">↗</button></div><div class="row postal-row"><div><label for="zip">US ZIP · OPTIONAL</label><input id="zip" inputmode="numeric" autocomplete="postal-code" placeholder="80302" maxlength="10" pattern="[0-9]{5}(-[0-9]{4})?"></div><div><label for="zipCity">CITY / STATE · AUTOMATIC</label><input id="zipCity" placeholder="Filled from ZIP" readonly aria-describedby="zipHint"></div></div><p id="zipHint" class="hint">Street + ZIP is enough for US addresses; no city required.</p></form><div id="results"></div>
  <form id="calculateForm">
  <div class="row"><div><label for="lat">LATITUDE</label><input id="lat" type="number" step="any" min="-90" max="90" value="" required></div><div><label for="lon">LONGITUDE</label><input id="lon" type="number" step="any" min="-180" max="180" value="" required></div></div>
