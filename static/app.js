@@ -30,7 +30,7 @@ function updatePlaceTitle(){
  notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting trace')+'. Still showing: '+displayedName+'.':'';
 }
 function invalidateResult(){locationGeneration++;resultDirty=true;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
-for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${Number($('lat').value).toFixed(4)}°, ${Number($('lon').value).toFixed(4)}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
+for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${$('lat').value}°, ${$('lon').value}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
 const initialDate=new Date(); $('date').value=[initialDate.getFullYear(),String(initialDate.getMonth()+1).padStart(2,'0'),String(initialDate.getDate()).padStart(2,'0')].join('-');
 async function api(url, options={}) {const r=await fetch(url,options);const data=await r.json();if(!r.ok){const error=Error(data.error||`Request failed (${r.status})`);error.status=r.status;throw error;}return data;}
 const jsonOptions = data => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
@@ -115,7 +115,7 @@ async function calculateCurrent(){
  const preserve=result&&renderedKey===key,keepRealtime=realTimeView||realtimeRequested,previousAzimuth=viewAzimuth;
  for(const el of document.querySelectorAll('aside input,aside select,aside button'))el.disabled=true;
  try{
-  if(!$('search').value)currentName=`${input.lat.toFixed(4)}\u00b0, ${input.lon.toFixed(4)}\u00b0`;
+  if(!$('search').value)currentName=`${input.lat}\u00b0, ${input.lon}\u00b0`;
   const nextName=currentName;updatePlaceTitle();
   status('Starting terrain analysis…');
   if(controllerPage&&$('syncHDMI').checked&&!remoteApplying)await publishLocationSelection();
