@@ -15,14 +15,21 @@ let cacheWritesEnabled=true;
 function forgetBrowserCache(){cacheWritesEnabled=false;for(const key of Object.keys(localStorage))if(key.startsWith('localsunset.'))localStorage.removeItem(key);}
 let resultDirty=true, calculationPending=false, renderedKey='', displayedName='';
 function calculationInput(){return {...coordinates(),date:$('date').value,radius:Number($('radius').value),zoom:Number($('zoom').value),source:$('source').value};}
+function updateGroundLookup(){
+ const output=$('groundLookup');if(!output)return;
+ if(!result||!result.terrain||resultDirty){output.textContent='Trace this location to look up ground elevation.';return;}
+ const terrain=result.terrain,format=value=>Number(value).toFixed(1)+' m ('+Math.round(Number(value)*3.280839895)+' ft)';
+ output.textContent='Looked-up ground: '+format(terrain.ground_m)+'. Observer elevation: '+format(terrain.observer_m)+'.';
+}
 function updatePlaceTitle(){
+ updateGroundLookup();
  $('placeTitle').textContent=(result?displayedName:currentName).toUpperCase();
  let notice=$('sceneUpdate');
  if(!notice){notice=document.createElement('div');notice.id='sceneUpdate';notice.setAttribute('role','status');$('view').parentElement.append(notice);}
  notice.hidden=!resultDirty||!result;
  notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting trace')+'. Still showing: '+displayedName+'.':'';
 }
-function invalidateResult(){locationGeneration++;resultDirty=true;if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
+function invalidateResult(){locationGeneration++;resultDirty=true;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
 for(const id of ['lat','lon','height','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){$('saved').value='';$('search').value='';currentName=`${Number($('lat').value).toFixed(4)}°, ${Number($('lon').value).toFixed(4)}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
 const initialDate=new Date(); $('date').value=[initialDate.getFullYear(),String(initialDate.getMonth()+1).padStart(2,'0'),String(initialDate.getDate()).padStart(2,'0')].join('-');
 async function api(url, options={}) {const r=await fetch(url,options);const data=await r.json();if(!r.ok){const error=Error(data.error||`Request failed (${r.status})`);error.status=r.status;throw error;}return data;}
