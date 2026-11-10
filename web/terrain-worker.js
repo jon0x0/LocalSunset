@@ -38,12 +38,12 @@ class Polar{
 self.onmessage=async event=>{
  const {id,input}=event.data,progress=message=>self.postMessage({id,status:'running',message});
  try{
-  const {lat,lon,height,radius,zoom,source,date}=input;for(const [value,min,max] of [[lat,-90,90],[lon,-180,180],[height,0,10000],[radius,5,200],[zoom,9,13]])if(!Number.isFinite(value)||value<min||value>max)throw Error('Invalid location or terrain settings.');
-  const identity=JSON.stringify([1,lat,lon,height,radius,zoom,source]),resultKey='result:'+identity+':'+date;let result=await WebCache.get(resultKey);
+  const {lat,lon,height,radius,zoom,source,date}=input;const ground=input.ground??null;if(ground!=null&&(!Number.isFinite(ground)||ground< -12000||ground>10000))throw Error('Invalid ground elevation override.');const near=ground!=null?(input.near??100):0;if(ground!=null&&(!Number.isFinite(near)||near<50||near>1000))throw Error('DEM exclusion distance must be between 50 and 1000 meters.');for(const [value,min,max] of [[lat,-90,90],[lon,-180,180],[height,0,10000],[radius,5,200],[zoom,9,13]])if(!Number.isFinite(value)||value<min||value>max)throw Error('Invalid location or terrain settings.');
+  const identity=JSON.stringify([1,lat,lon,height,radius,zoom,source,...(ground!=null?[ground,near]:[])]),resultKey='result:'+identity+':'+date;let result=await WebCache.get(resultKey);
   if(!result){progress('Loading cached terrain or downloading elevation tiles...');let terrain=await WebCache.get('horizon:'+identity);
-   if(!terrain){const provider=Math.abs(lat)>80?await Polar.create(lat,lon,radius):new Tiles(lat,lon,zoom,source);if(Math.abs(lat)<=80&&Math.PI*(radius*1000/(provider.spacing*256))**2>512)throw Error('This range/detail needs too many tiles. Reduce range or detail.');terrain=await BrowserTerrain.trace(provider,lat,lon,height,radius,progress);await WebCache.put('horizon:'+identity,terrain);}
+   if(!terrain){const provider=Math.abs(lat)>80?await Polar.create(lat,lon,radius):new Tiles(lat,lon,zoom,source);if(Math.abs(lat)<=80&&Math.PI*(radius*1000/(provider.spacing*256))**2>512)throw Error('This range/detail needs too many tiles. Reduce range or detail.');terrain=await BrowserTerrain.trace(provider,lat,lon,height,radius,progress,ground,near);await WebCache.put('horizon:'+identity,terrain);}
    progress('Solving terrain-adjusted sunrise and sunset in your browser...');result=BrowserSolar.calculate(lat,lon,date,tzlookup(lat,lon),terrain);await WebCache.put(resultKey,result);
   }
-  self.postMessage({id,status:'done',message:'Ready - calculated in this browser',result,signature:[lat,lon,height,radius,zoom,source,date]});
+  self.postMessage({id,status:'done',message:'Ready - calculated in this browser',result,signature:[lat,lon,height,radius,zoom,source,date,...(ground!=null?[ground,near]:[])]});
  }catch(error){self.postMessage({id,status:'error',message:'Calculation failed; the previous image is retained.',error:error.message||String(error)});}
 };

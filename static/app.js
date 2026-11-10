@@ -19,7 +19,7 @@ function updateGroundLookup(){
  const output=$('groundLookup');if(!output)return;
  if(!result||!result.terrain||resultDirty){output.textContent='Trace this location to look up ground elevation.';return;}
  const terrain=result.terrain,format=value=>Number(value).toFixed(1)+' m ('+Math.round(Number(value)*3.280839895)+' ft)';
- output.textContent='Looked-up ground: '+format(terrain.ground_m)+'. Observer elevation: '+format(terrain.observer_m)+'.';
+ output.textContent='Looked-up ground: '+format(terrain.dem_ground_m??terrain.ground_m)+'. '+(terrain.ground_override_m!=null?'Your ground: '+format(terrain.ground_m)+'. ':'')+'Observer elevation: '+format(terrain.observer_m)+'.'+(terrain.ground_override_m!=null?' Nearby DEM ignored within '+terrain.near_m+' m.':'');
 }
 function updatePlaceTitle(){
  updateGroundLookup();
@@ -30,12 +30,12 @@ function updatePlaceTitle(){
  notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting trace')+'. Still showing: '+displayedName+'.':'';
 }
 function invalidateResult(){locationGeneration++;resultDirty=true;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
-for(const id of ['lat','lon','height','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){$('saved').value='';$('search').value='';currentName=`${Number($('lat').value).toFixed(4)}°, ${Number($('lon').value).toFixed(4)}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
+for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${Number($('lat').value).toFixed(4)}°, ${Number($('lon').value).toFixed(4)}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
 const initialDate=new Date(); $('date').value=[initialDate.getFullYear(),String(initialDate.getMonth()+1).padStart(2,'0'),String(initialDate.getDate()).padStart(2,'0')].join('-');
 async function api(url, options={}) {const r=await fetch(url,options);const data=await r.json();if(!r.ok){const error=Error(data.error||`Request failed (${r.status})`);error.status=r.status;throw error;}return data;}
 const jsonOptions = data => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 function status(s){$('status').textContent=s;$('projectionStatus').textContent=calculationPending&&result?'Updating terrain in background · current scene retained':s;const progress=$('terrainProgress');if(progress){progress.hidden=!calculationPending;progress.textContent=calculationPending?s:'';}}
-function coordinates(){if($('lat').value===''||$('lon').value==='')throw Error('Choose a location or enter latitude and longitude first.');return {lat:Number($('lat').value),lon:Number($('lon').value),height:Number($('height').value)};}
+function coordinates(){if($('lat').value===''||$('lon').value==='')throw Error('Choose a location or enter latitude and longitude first.');return {lat:Number($('lat').value),lon:Number($('lon').value),height:Number($('height').value),...($('groundOverride')&&$('groundOverride').value!==''?{ground:Number($('groundOverride').value),near:Number($('groundClearance').value)}:{})};}
 function formatClock(ms,zone,seconds=true){
  const twelve=document.body.dataset.clock12==='true';
  const options={timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:twelve};
@@ -94,7 +94,7 @@ $('searchForm').addEventListener('submit',async e=>{
    if(row.source)b.append(Object.assign(document.createElement('small'),{textContent:row.source}));
    b.onclick=()=>{
     invalidateResult();$('saved').value='';zipRequest++;clearTimeout(zipTimer);
-    $('lat').value=row.lat;$('lon').value=row.lon;
+    $('lat').value=row.lat;$('lon').value=row.lon;if($('groundOverride'))$('groundOverride').value='';
     currentName=row.name;$('search').value=row.name;
     $('zip').value=row.postcode&&/^\d{5}(?:-\d{4})?$/.test(row.postcode)?row.postcode:'';
     zipFromMatch=Boolean($('zip').value);
@@ -124,7 +124,7 @@ async function calculateCurrent(){
   if(state.status==='error')throw Error(state.error);
   if(generation!==locationGeneration)return false;
   if(remoteApplying){const latest=await api('/api/display-config');if(stableSettings(latest.config)!==stableSettings(activeDisplaySettings))return false;}
-  const expected=[input.lat,input.lon,input.height,input.radius,input.zoom,input.source,input.date];
+  const expected=[input.lat,input.lon,input.height,input.radius,input.zoom,input.source,input.date];if(input.ground!=null)expected.push(input.ground,input.near??100);
   if(!state.signature||JSON.stringify(state.signature)!==JSON.stringify(expected))throw Error('Calculation location does not match the selection; result rejected.');
   cacheWritesEnabled=true;result=state.result;renderedKey=key;displayedName=nextName;resultDirty=false;
   updatePlaceTitle();showResult(preserve);persistScene();
@@ -157,7 +157,7 @@ $('saved').onchange=event=>{
  if(!point)return;
  invalidateResult();
  zipRequest++;clearTimeout(zipTimer);zipFromMatch=false;$('zip').value='';$('zipCity').value='';
- for(const key of ['lat','lon','height'])$(key).value=point[key];
+ for(const key of ['lat','lon','height'])$(key).value=point[key];if($('groundOverride'))$('groundOverride').value=point.ground??'';if($('groundClearance'))$('groundClearance').value=point.near??100;
  currentName=point.name;$('search').value=point.name;updatePlaceTitle();
  if(event&&controllerPage&&$('syncHDMI').checked){
   status('Switching the projector to '+point.name+'…');calculateCurrent();
@@ -382,7 +382,7 @@ async function applyRemoteDisplay(state){
  remoteApplying=true;
  try{
   const settings=state.config;activeDisplaySettings=settings;
-  for(const key of ['lat','lon','height','radius','zoom','source'])$(key).value=settings[key];
+  for(const key of ['lat','lon','height','radius','zoom','source'])$(key).value=settings[key];if($('groundOverride'))$('groundOverride').value=settings.ground??'';if($('groundClearance'))$('groundClearance').value=settings.near??100;
   currentName=settings.name;updatePlaceTitle();$('search').value=settings.name;$('saved').value=saved.some(point=>point.name===settings.name)?settings.name:'';
   const eventChanged=$('eventMode').value!==settings.event;
   $('eventMode').value=settings.event;
@@ -415,7 +415,7 @@ $('loadDisplayConfig').onclick=async()=>{
   if(!state.config){$('remoteStatus').textContent='No shared display configuration has been saved yet.';return;}
   const settings=state.config;
   invalidateResult();
-  for(const key of ['lat','lon','height','radius','zoom','source'])$(key).value=settings[key];
+  for(const key of ['lat','lon','height','radius','zoom','source'])$(key).value=settings[key];if($('groundOverride'))$('groundOverride').value=settings.ground??'';if($('groundClearance'))$('groundClearance').value=settings.near??100;
   currentName=settings.name;updatePlaceTitle();$('search').value=settings.name;$('saved').value=saved.some(point=>point.name===settings.name)?settings.name:'';
   zipRequest++;clearTimeout(zipTimer);zipFromMatch=false;$('zip').value='';$('zipCity').value='';
   $('remoteEvent').value=settings.event;$('eventMode').value=settings.event;
@@ -536,7 +536,7 @@ function restoreScene(){
   if(!input||!Number.isFinite(input.lat)||!Number.isFinite(input.lon))return false;
   const view=JSON.parse(localStorage.getItem('localsunset.lastView.v1')||'null');
   const previous=view&&view.key===cached.key?view:cached;
-  for(const key of ['lat','lon','height','date','radius','zoom','source'])$(key).value=input[key];
+  for(const key of ['lat','lon','height','date','radius','zoom','source'])$(key).value=input[key];if($('groundOverride'))$('groundOverride').value=input.ground??'';if($('groundClearance'))$('groundClearance').value=input.near??100;
   result=cached.result;renderedKey=cached.key;currentName=displayedName=cached.name;
   resultDirty=true;currentTime=previous.time;viewAzimuth=previous.azimuth;
   $('eventMode').value=previous.event==='sunrise'?'sunrise':'sunset';$('search').value=currentName;

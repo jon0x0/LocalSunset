@@ -107,9 +107,11 @@ class Terrain:
                 out[mask] += self.tile(tx,ty)[gy[mask] % 256, gx[mask] % 256] * weight[mask]
         return out.reshape(shape)
 
-    def horizon(self, lat, lon, height, radius_km=60, progress=lambda message: None):
-        ground = float(self.sample(lat, lon))
+    def horizon(self, lat, lon, height, radius_km=60, progress=lambda message: None, ground_override=None, near_distance=None):
+        dem_ground = float(self.sample(lat, lon))
+        ground = dem_ground if ground_override is None else float(ground_override)
         observer = ground+height
+        near_distance = (100 if ground_override is not None else 0) if near_distance is None else near_distance
         azimuths = np.arange(0, 360, .25)
         # Dense nearby samples; at distance, step by at most one terrain pixel.
         spacing = getattr(self, 'spacing', 156543.03 * math.cos(math.radians(lat)) / 2**self.zoom)
@@ -117,6 +119,7 @@ class Terrain:
             raise ValueError('This detail/range combination would download too many tiles. Reduce range or terrain detail (especially near the poles).')
         distances = np.unique(np.concatenate((np.geomspace(2, 1000, 100),
                                                np.arange(1000, radius_km*1000+spacing, spacing))))
+        distances = distances[distances >= near_distance]
         angle = distances/R
         # Beyond DEM radius assume sea-level sphere, include observer's sea horizon.
         dip = -math.degrees(math.acos(R/(R+max(0,observer))))
@@ -132,7 +135,7 @@ class Terrain:
             profiles.extend(np.maximum(angles.max(axis=1), dip).tolist())
             for i, limit in enumerate((2000, 10000, radius_km*1000+spacing)):
                 layer_chunks[i].extend(np.maximum(angles[:,distances <= limit].max(axis=1), dip).tolist())
-        return dict(ground_m=ground, observer_m=observer, azimuths=azimuths.tolist(),
+        return dict(ground_m=ground, observer_m=observer, **(dict(dem_ground_m=dem_ground,ground_override_m=ground,near_m=near_distance) if ground_override is not None else {}), azimuths=azimuths.tolist(),
                     horizon=profiles, layers=layer_chunks, sources=sorted(self.used),
                     pixel_m=round(spacing,1), radius_km=radius_km)
 

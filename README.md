@@ -38,6 +38,8 @@ US locations automatically try USGS 3DEP, with global AWS Terrarium fallback. Ab
 
 The horizon includes Earth curvature, observer height and sampled bare-earth elevation. Astronomy Engine supplies the solar coordinates, refraction and disk radius. Events search for the first visible and last hidden solar disk rays. Results are displayed to the second, but DEM resolution, atmosphere, horizon sampling and unmodeled vegetation/buildings/clouds prevent guaranteed second-level observational accuracy. Extremely short visibility windows may be missed. Marine and polar coverage have additional DEM limitations.
 
+You can override your ground elevation, including with a value below the DEM lookup. Height above ground is added to that value to obtain observer elevation. With an override, nearby DEM samples inside a configurable exclusion radius (100 m by default; 50–1000 m allowed) do not block the Sun. Terrain beyond that radius keeps its DEM elevations. Clearing the override restores automatic ground elevation and normal nearby sampling. Overrides and exclusion distances are saved per location and synchronized with the Pi display; cached horizons/results distinguish these settings.
+
 ## Display
 
 - Sunrise and sunset predictions, current local time, countdown/count-up, 12/24-hour formats.

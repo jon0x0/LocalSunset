@@ -122,6 +122,9 @@ def display_configuration():
                     raise ValueError(f'{key} must be true or false')
                 settings[key]=data.get(key,True)
             settings['date']=date.fromisoformat(data['date']).isoformat()
+            if data.get('ground') is not None:
+                settings['ground']=number(data,'ground',-12000,10000)
+                settings['near']=number(data,'near',50,1000) if data.get('near') is not None else 100
         except (KeyError,TypeError,ValueError) as exc:
             return jsonify(error=str(exc)),400
     with lock:
@@ -296,6 +299,8 @@ def calculate():
         data = request.get_json()
         lat, lon = number(data, 'lat', -90, 90), number(data, 'lon', -180, 180)
         height = number(data, 'height', 0, 10000)
+        ground = number(data,'ground',-12000,10000) if data.get('ground') is not None else None
+        near = (number(data,'near',50,1000) if data.get('near') is not None else 100) if ground is not None else 0
         radius = number(data, 'radius', 5, 200)
         zoom = int(number(data, 'zoom', 9, 13))
         day = date.fromisoformat(data['date'])
@@ -304,6 +309,7 @@ def calculate():
             raise ValueError('Unknown elevation source')
         zone = finder.timezone_at(lat=lat, lng=lon) or 'UTC'
         signature=(lat,lon,height,radius,zoom,source,day.isoformat())
+        if ground is not None:signature+=(ground,near)
         dem=cache_store.dem_identity()
         identity=[signature,dem]
         with lock:
@@ -327,12 +333,13 @@ def calculate():
                 job.update(status='running', message='Downloading and tracing terrain. First visits may take several minutes.')
                 local_dem = os.environ.get('LOCAL_DEM')
                 terrain_key=[lat,lon,height,radius,zoom,source,dem]
+                if ground is not None:terrain_key.extend([ground,near])
                 terrain=cache_store.read('horizons',terrain_key)
                 if terrain is None:
                     provider = (RasterTerrain(local_dem,lat,lon) if local_dem else
                                 polar_terrain(lat,lon,radius) if abs(lat)>80 else
                                 Terrain(lat,lon,zoom,source))
-                    terrain = provider.horizon(lat, lon, height, radius, lambda message: job.update(message=message))
+                    terrain = provider.horizon(lat, lon, height, radius, lambda message: job.update(message=message),**({'ground_override':ground,'near_distance':near} if ground is not None else {}))
                     cache_store.write('horizons',terrain_key,terrain)
                 job['message'] = 'Finding solar disk intersections and local sunset…'
                 result = calculate_day(lat, lon, day, zone, terrain)
@@ -403,6 +410,9 @@ def locations():
                 data = request.get_json()
                 item = dict(name=str(data['name']).strip()[:120], lat=number(data,'lat',-90,90),
                             lon=number(data,'lon',-180,180), height=number(data,'height',0,10000))
+                if data.get('ground') is not None:
+                    item['ground']=number(data,'ground',-12000,10000)
+                    item['near']=number(data,'near',50,1000) if data.get('near') is not None else 100
                 if not item['name']:
                     raise ValueError('Enter a location name')
                 saved = [s for s in saved if s['name'] != item['name']] + [item]

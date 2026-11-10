@@ -12,6 +12,10 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
  await context.self.onmessage({data:{id:'1',input}});assert.equal(messages.at(-1).status,'done');
  await context.self.onmessage({data:{id:'2',input}});assert.equal(traces,1);assert.equal(solves,1);
  await context.self.onmessage({data:{id:'3',input:{...input,date:'2026-01-02'}}});assert.equal(traces,1);assert.equal(solves,2);
+ await context.self.onmessage({data:{id:'4',input:{...input,ground:0}}});assert.equal(traces,2);assert.equal(messages.at(-1).signature.at(-2),0);assert.equal(messages.at(-1).signature.at(-1),100);
+ await context.self.onmessage({data:{id:'5',input:{...input,ground:0,near:100}}});assert.equal(traces,2);
+ await context.self.onmessage({data:{id:'6',input:{...input,ground:0,near:50}}});assert.equal(traces,3);
+ await context.self.onmessage({data:{id:'7',input:{...input,ground:0,near:0}}});assert.equal(messages.at(-1).status,'error');assert.equal(traces,3);
  // Bilinear interpolation must cross tile edges, including longitude wrapping.
  const tiles=vm.runInContext('new Tiles(0,0,1,"global")',context);
  tiles.tile=async key=>{if(!tiles.tiles.has(key)){const [x,y]=key.split(',').map(Number),data=new Float32Array(65536);for(let j=0;j<256;j++)for(let i=0;i<256;i++)data[j*256+i]=x*256+i+y*512+j*2;tiles.tiles.set(key,data);}return tiles.tiles.get(key);};

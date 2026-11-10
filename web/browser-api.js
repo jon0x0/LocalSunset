@@ -22,6 +22,7 @@
  }
  async function api(url,options){
   const method=(options.method||'GET').toUpperCase(),path=url.pathname.replace(/\/$/,''),body=options.body?JSON.parse(options.body):null;
+  if(body&&body.ground!=null){if(!Number.isFinite(body.ground)||body.ground< -12000||body.ground>10000)throw Error('Invalid ground elevation override.');body.near=body.near??100;if(!Number.isFinite(body.near)||body.near<50||body.near>1000)throw Error('DEM exclusion distance must be between 50 and 1000 meters.');}
   if(path==='/api/health')return {status:'ok',edition:'browser'};
   if(path==='/api/display-target')return {url:'this browser'};
   if(path==='/api/today')return today(Number(url.searchParams.get('lat')),Number(url.searchParams.get('lon')));
@@ -32,7 +33,7 @@
   }
   if(path.startsWith('/api/locations/')&&method==='DELETE')return set('locations',get('locations',[]).filter(p=>p.name!==decodeURIComponent(path.slice('/api/locations/'.length))));
   if(path==='/api/calculate'){
-   zone(body.lat,body.lon);if(!/^\d{4}-\d\d-\d\d$/.test(body.date))throw Error('Choose a valid date.');const signature=[body.lat,body.lon,body.height,body.radius,body.zoom,body.source,body.date];
+   zone(body.lat,body.lon);if(!/^\d{4}-\d\d-\d\d$/.test(body.date))throw Error('Choose a valid date.');const signature=[body.lat,body.lon,body.height,body.radius,body.zoom,body.source,body.date,...(body.ground!=null?[body.ground,body.near??100]:[])];
    for(const [id,job] of jobs)if(JSON.stringify(job.signature)===JSON.stringify(signature)&&job.status!=='error')return {id};
    for(const [id,job] of jobs)if(jobs.size>8&&['done','error'].includes(job.status))jobs.delete(id);
    const id=String(++serial);jobs.set(id,{status:'queued',message:'Waiting for browser terrain worker...',signature});queue.push({id,input:body});pump();return {id};
