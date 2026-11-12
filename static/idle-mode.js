@@ -17,7 +17,8 @@ const IdleMode=(()=>{
    if(busy)return;busy=true;
    try{
     await sharedActivity();
-    if(Date.now()-lastInput<TIMEOUT||calculationPending||remoteApplying||Date.now()<retryAt)return;
+    const dayChanged=result&&localDay(Date.now(),result.timezone)!==$('date').value;
+    if(Date.now()-lastInput<TIMEOUT||calculationPending||remoteApplying||(!dayChanged&&Date.now()<retryAt))return;
     if($('lat').value===''||$('lon').value==='')return;
     let workingDay=null,selection=null;
     const selectionKey=()=>JSON.stringify({...calculationInput(),date:null});
@@ -32,7 +33,7 @@ const IdleMode=(()=>{
     if(!result||renderedKey!==key||resultDirty){$('date').value=day;realtimeRequested=true;if(!await calculateCurrent())throw Error('Could not update the unattended sky.');if(!valid())return;}
     const entering=!active;active=true;$('remoteToday').checked=true;$('remoteLive').checked=true;if(!realTimeView||playing||entering)enableLiveSky();
     let next=nextEvent(result,Date.now());
-    const identity=JSON.stringify(calculationInput());
+    const identity=selectionKey();
     if(!next&&lookahead&&lookahead.key===identity&&Date.parse(lookahead.next.event.utc)>Date.now())next=lookahead.next;
     if(!next){
      // Keep today's sky/date visible while looking ahead, even in polar seasons.
@@ -40,8 +41,8 @@ const IdleMode=(()=>{
      for(let count=0;count<370&&!next;count++,searchDay=nextDay(searchDay)){
       await sharedActivity();
       if(!valid())return;
-      const job=await api('/api/calculate',jsonOptions({...calculationInput(),date:searchDay}));let state;
-      do{await new Promise(resolve=>setTimeout(resolve,500));if(!valid())return;state=await api('/api/jobs/'+job.id);}while(state.status==='queued'||state.status==='running');
+      const job=await api('/api/calculate',jsonOptions({...calculationInput(),date:searchDay}));let state=await api('/api/jobs/'+job.id);
+      while(state.status==='queued'||state.status==='running'){await new Promise(resolve=>setTimeout(resolve,500));if(!valid())return;state=await api('/api/jobs/'+job.id);}
       if(state.status==='error')throw Error(state.error);
       const input=calculationInput(),expected=[input.lat,input.lon,input.height,input.radius,input.zoom,input.source,searchDay];if(input.ground!=null)expected.push(input.ground,input.near??100);
       if(JSON.stringify(state.signature)!==JSON.stringify(expected))throw Error('Lookahead calculation did not match this location.');

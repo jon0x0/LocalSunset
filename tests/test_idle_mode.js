@@ -12,7 +12,7 @@ function harness(instant,age,receiver=false){
  const nodes={lat:{value:'10'},lon:{value:'20'},height:{value:'2'},date:{value:'2026-11-10'},radius:{value:'30'},zoom:{value:'10'},source:{value:'auto'},eventMode:{value:'sunset'},remoteEvent:{value:'sunset'},syncHDMI:{checked:false},remoteToday:{checked:false},remoteLive:{checked:false},calculate:{disabled:false}};
  const coordinates=()=>({lat:10,lon:20,height:2,ground:100,near:75});
  const input=()=>({...coordinates(),date:nodes.date.value,radius:30,zoom:10,source:'auto'});
- const day=date=>({timezone:'America/New_York',sunrise:{utc:date+'T11:00:00Z',azimuth:100},sunset:{utc:date+'T23:00:00Z',azimuth:260},timeline:[{t:Date.parse(date+'T05:00:00Z')},{t:Date.parse(idle.nextDay(date)+'T05:00:00Z')}]});
+ const day=date=>({timezone:'America/New_York',sunrise:date<(calls.hiddenUntil||'')?null:{utc:date+'T11:00:00Z',azimuth:100},sunset:date<(calls.hiddenUntil||'')?null:{utc:date+'T23:00:00Z',azimuth:260},timeline:[{t:Date.parse(date+'T05:00:00Z')},{t:Date.parse(idle.nextDay(date)+'T05:00:00Z')}]});
  let config={...input(),name:'Synthetic',today:false,live:false,event:'sunset',projector:true};
  class Clock extends Date{static now(){return now;}}
  const context=vm.createContext({console,Intl,Date:Clock,localStorage:{getItem:()=>String(lastInput),setItem(){}},document:{body:{dataset:{browserEdition:receiver?'false':'true'}},addEventListener:(name,fn)=>listeners[name]=fn},setInterval:fn=>timers.push(fn),setTimeout:fn=>Promise.resolve().then(fn),$:id=>nodes[id],controllerPage:!receiver,calculationPending:false,remoteApplying:false,resultDirty:false,result:day('2026-11-10'),renderedKey:JSON.stringify(input()),realTimeView:false,realtimeRequested:false,playing:true,viewAzimuth:150,coordinates,calculationInput:input,jsonOptions:value=>({method:'POST',body:JSON.stringify(value)}),stableSettings:JSON.stringify,lastDisplayRevision:1,activeDisplaySettings:config,hdmiViewRevision:0,
@@ -21,7 +21,7 @@ function harness(instant,age,receiver=false){
    if(url.startsWith('/api/today'))return {date:idle.localDay(now,'America/New_York')};
    if(url==='/api/calculate'){const value=JSON.parse(options.body),id=String(jobs.size);calls.lookahead.push(value);jobs.set(id,value);return {id};}
    if(url.startsWith('/api/jobs/')){if(calls.inputDuringLookahead)lastInput=now;const value=jobs.get(url.split('/').at(-1));return {status:'done',signature:[value.lat,value.lon,value.height,value.radius,value.zoom,value.source,value.date,value.ground,value.near],result:day(value.date)};}
-   if(url==='/api/display-config'){if(options.method==='PUT'){assert.equal(options.headers['If-Match'],String(revision));config=JSON.parse(options.body);calls.config.push(config);revision++;}return {revision,config};}
+   if(url==='/api/display-config'){if(calls.failOnce){calls.failOnce=false;throw Error('temporary failure');}if(options.method==='PUT'){assert.equal(options.headers['If-Match'],String(revision));config=JSON.parse(options.body);calls.config.push(config);revision++;}return {revision,config};}
    if(url==='/api/display-view')return {};
    throw Error(url);
   },calculateCurrent:async()=>{calls.calculate.push(input());context.result=day(nodes.date.value);context.renderedKey=JSON.stringify(input());context.resultDirty=false;return true;},enableLiveSky:()=>{calls.live++;context.realTimeView=true;context.playing=false;},draw(){},syncEventControls(){},updateCountdown(){},persistScene(){},persistView(){},status(){},localDate:ms=>idle.localDay(ms,'America/New_York')});
@@ -39,5 +39,7 @@ function harness(instant,age,receiver=false){
  night.advance(6*3600000);await night.tick();assert.equal(night.nodes.eventMode.value,'sunset');assert.equal(night.context.viewAzimuth,260);
  night.remoteInput();night.advance(5001);await night.tick();assert.equal(night.context.idleUpcoming,null);
  const interrupted=harness('2026-11-13T01:00:00Z',idle.TIMEOUT+1,true);interrupted.calls.inputDuringLookahead=true;await interrupted.flush();assert.equal(interrupted.calls.config.length,0);assert.equal(interrupted.context.idleUpcoming,null);
+ const retry=harness('2026-11-13T04:59:59Z',idle.TIMEOUT+1,true);retry.calls.failOnce=true;await retry.flush();retry.advance(2000);await retry.tick();assert.equal(retry.nodes.date.value,'2026-11-13');
+ const polar=harness('2026-11-13T01:00:00Z',idle.TIMEOUT+1);polar.calls.hiddenUntil='2026-11-20';await polar.flush();assert.equal(polar.context.idleUpcoming.event.utc,'2026-11-20T11:00:00Z');const searches=polar.calls.lookahead.length;polar.advance(4*3600000+1);await polar.tick();assert.equal(polar.nodes.date.value,'2026-11-13');assert.equal(polar.calls.lookahead.length,searches);
  console.log('PASS: two-hour idle threshold, real input cancellation, next-day sunrise without changing today, local midnight rollover, event handoff, retained overrides and shared Pi configuration.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
