@@ -44,6 +44,7 @@ You can override your ground elevation, including with a value below the DEM loo
 
 - Sunrise and sunset predictions, current local time, countdown/count-up, 12/24-hour formats.
 - Realtime follows current time and clear-sky solar brightness; manual time slider/playback explores the selected date.
+- After two hours without user input, unattended mode follows the current local date and realtime sky, centering/counting down to whichever sunrise or sunset occurs next. After sunset it can track tomorrow's sunrise while retaining today's sky; the date advances at local midnight. Last location, manual elevation/exclusion radius, terrain detail, appearance, FOV and alignment are retained. Activity on connected Pi control pages resets the projector's timer. New input stops automatic event following. Cached terrain is reused; updates retain the last good scene until ready. At polar sites the next-event search can take longer and looks up to 370 local dates ahead.
 - Drag-pan 360 degrees; adjustable 30-120 degree horizontal FOV.
 - Projector layout, optional text-free Sky only, and live network controls.
 - Four-corner keystone, paired signed taper, saved default/restore, and reset.

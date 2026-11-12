@@ -8,7 +8,7 @@ output=ROOT/'dist/browser'
 if output.is_symlink() or not output.resolve().is_relative_to((ROOT/'dist').resolve()):raise SystemExit('Unsafe build output path')
 if output.exists():shutil.rmtree(output)
 output.mkdir(parents=True,exist_ok=True)
-shared=['app.js','cache-controls.js','celestial-sky.js','countdown.js','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md']
+shared=['app.js','idle-mode.js','cache-controls.js','celestial-sky.js','countdown.js','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md']
 owned=['browser-api.js','cache-db.js','terrain-core.js','solar-core.js','terrain-worker.js','README.md','BROWSER-THIRD-PARTY.md','vendor/geotiff.js','vendor/GEOTIFF-LICENSE.md','vendor/proj4.js','vendor/PROJ4-LICENSE.md','vendor/tz.js','vendor/TZ-LOOKUP-LICENSE.md']
 sources=[ROOT/'static'/name for name in shared]+[ROOT/'web'/name for name in owned]+[ROOT/'static/index.html']
 audit(sources)

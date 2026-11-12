@@ -3,7 +3,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 TOP=('app.py','cache_store.py','solar.py','terrain.py','geocoding.py','network_access.py','serve.py','run.py','requirements.txt','README.md','.gitignore','.gitattributes','start.bat')
 PI=('README.md','install.sh','install-service.sh','kiosk.sh','run.sh')
-STATIC=('app.js','cache-controls.js','celestial-sky.js','countdown.js','index.html','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md')
+STATIC=('app.js','idle-mode.js','cache-controls.js','celestial-sky.js','countdown.js','index.html','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md')
 TOOLS=('public_files.py','package_pi.py','audit_public.py','build_browser.py')
 def public_files():
     files=[ROOT/p for p in TOP]+[ROOT/'raspi'/p for p in PI]+[ROOT/'static'/p for p in STATIC]+[ROOT/'tools'/p for p in TOOLS]

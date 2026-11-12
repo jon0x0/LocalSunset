@@ -24,6 +24,7 @@
   const method=(options.method||'GET').toUpperCase(),path=url.pathname.replace(/\/$/,''),body=options.body?JSON.parse(options.body):null;
   if(body&&body.ground!=null){if(!Number.isFinite(body.ground)||body.ground< -12000||body.ground>10000)throw Error('Invalid ground elevation override.');body.near=body.near??100;if(!Number.isFinite(body.near)||body.near<50||body.near>1000)throw Error('DEM exclusion distance must be between 50 and 1000 meters.');}
   if(path==='/api/health')return {status:'ok',edition:'browser'};
+  if(path==='/api/activity'){let value=get('activity',null);if(value===null||method==='POST')value=set('activity',Date.now());return {last_input_ms:value,idle_ms:Math.max(0,Date.now()-value)};}
   if(path==='/api/display-target')return {url:'this browser'};
   if(path==='/api/today')return today(Number(url.searchParams.get('lat')),Number(url.searchParams.get('lon')));
   if(path.startsWith('/api/zip/'))return zip(decodeURIComponent(path.slice(9)));

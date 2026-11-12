@@ -28,6 +28,12 @@ locations_path = ROOT/'locations.json'
 display_config_path = ROOT/'.display-config.json'
 display_view=dict(revision=0,view=None)
 display_ack=dict(revision=0,updated_ms=0)
+activity_path=ROOT/'.activity-state.json'
+try:
+    activity_last_ms=float(json.loads(activity_path.read_text())['last_input_ms'])
+except (OSError,ValueError,KeyError,TypeError):
+    activity_last_ms=time.time()*1000
+activity_saved_ms=0
 relay_state=local()
 
 
@@ -273,6 +279,21 @@ def index():
 @app.get('/api/health')
 def health():
     return jsonify(status='ok')
+
+
+@app.route('/api/activity',methods=['GET','POST'])
+def user_activity():
+    global activity_last_ms,activity_saved_ms
+    with lock:
+        now=time.time()*1000
+        if request.method=='POST':
+            activity_last_ms=now
+            if now-activity_saved_ms>=15000:
+                temporary=activity_path.with_suffix('.tmp')
+                temporary.write_text(json.dumps(dict(last_input_ms=now)))
+                temporary.replace(activity_path)
+                activity_saved_ms=now
+        return jsonify(last_input_ms=activity_last_ms,idle_ms=max(0,now-activity_last_ms))
 
 
 @app.get('/api/today')

@@ -29,7 +29,7 @@ function updatePlaceTitle(){
  notice.hidden=!resultDirty||!result;
  notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting trace')+'. Still showing: '+displayedName+'.':'';
 }
-function invalidateResult(){locationGeneration++;resultDirty=true;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
+function invalidateResult(){locationGeneration++;resultDirty=true;if(typeof idleUpcoming!=='undefined')idleUpcoming=null;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
 for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${$('lat').value}°, ${$('lon').value}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
 const initialDate=new Date(); $('date').value=[initialDate.getFullYear(),String(initialDate.getMonth()+1).padStart(2,'0'),String(initialDate.getDate()).padStart(2,'0')].join('-');
 async function api(url, options={}) {const r=await fetch(url,options);const data=await r.json();if(!r.ok){const error=Error(data.error||`Request failed (${r.status})`);error.status=r.status;throw error;}return data;}
@@ -118,7 +118,7 @@ async function calculateCurrent(){
   if(!$('search').value)currentName=`${input.lat}\u00b0, ${input.lon}\u00b0`;
   const nextName=currentName;updatePlaceTitle();
   status('Starting terrain analysis…');
-  if(controllerPage&&$('syncHDMI').checked&&!remoteApplying)await publishLocationSelection();
+  if(controllerPage&&$('syncHDMI').checked&&!remoteApplying&&!(typeof idleApplying!=='undefined'&&idleApplying))await publishLocationSelection();
   const job=await api('/api/calculate',jsonOptions(input));let state;
   do{await new Promise(r=>setTimeout(r,1400));state=await api('/api/jobs/'+job.id);status(state.message);}while(state.status==='queued'||state.status==='running');
   if(state.status==='error')throw Error(state.error);
@@ -245,7 +245,7 @@ function animate(now){if(playing&&result){setTime(playbackAnchorTime+(Date.now()
 new ResizeObserver(draw).observe(canvas);requestAnimationFrame(animate);
 
 
-function selectedEvent(){return result?result[$('eventMode').value]:null;}
+function selectedEvent(){return typeof idleUpcoming!=='undefined'&&idleUpcoming&&idleUpcoming.mode===$('eventMode').value?idleUpcoming.event:result?result[$('eventMode').value]:null;}
 function syncEventControls(){
  const mode=$('eventMode').value;
  $('centerSunset').textContent='Center on '+mode+' â†—';
@@ -266,7 +266,9 @@ $('eventMode').addEventListener('change',selectEventView);
 
 function updateCountdown(){
  if(!controllerPage&&document.body.classList.contains('sky-only')&&result){realTimeView=true;playing=false;}
- const now=Date.now(),state=sunsetCountdown(result,now,$('eventMode').value);
+ const eventResult=typeof idleUpcoming!=='undefined'&&idleUpcoming&&result?{...result,[idleUpcoming.mode]:idleUpcoming.event}:result;
+ const now=Date.now(),state=sunsetCountdown(eventResult,now,$('eventMode').value);
+ if(typeof idleUpcoming!=='undefined'&&idleUpcoming)state.note+=' Next '+idleUpcoming.mode+': '+localDate(Date.parse(idleUpcoming.event.utc))+'.';
  const zone=result?result.timezone:Intl.DateTimeFormat().resolvedOptions().timeZone;
  const clock=formatClock(now,zone);
  for(const id of ['currentLocalTime','projectionCurrentTime'])renderClock(id,clock);
@@ -274,10 +276,11 @@ function updateCountdown(){
  $('countdownLabel').textContent=(state.past?'TIME SINCE ':'TIME UNTIL ')+$('eventMode').value.toUpperCase();
  $('countdown').textContent=state.value;
  $('countdownNote').textContent=state.note;
- const lastRay=result&&result.sunset;
+ const lastRay=eventResult&&eventResult.sunset;
  $('lastRayTime').textContent=lastRay?formatTime(Date.parse(lastRay.utc)):(result?'No sunset':'—:—:—');
  $('lastRayZone').textContent=result?result.timezone:'Location time zone';
  $('lastRayDate').textContent=lastRay?localDate(Date.parse(lastRay.utc)):(result?'No last-ray event on the selected date.':'Select a location and calculate.');
+ if(eventResult)for(const mode of ['sunrise','sunset']){const event=eventResult[mode],time=$(mode),date=$(mode+'Date');if(time)time.textContent=event?formatTime(Date.parse(event.utc)):'No '+mode;if(date)date.textContent=event?localDate(Date.parse(event.utc)):(result.status||'No predicted event').replaceAll('_',' ');}
  if(realTimeView&&result){
   if(Date.now()>=result.timeline[0].t&&Date.now()<=result.timeline.at(-1).t)setTime(Date.now(),true);
   // Keep the last valid scene at midnight while the next local day loads.
@@ -285,8 +288,8 @@ function updateCountdown(){
  $('projectionCountdownLabel').textContent=(state.past?'SINCE ':'UNTIL ')+$('eventMode').value.toUpperCase();
  $('projectionCountdown').textContent=state.value;
  $('projectionNote').textContent=state.note;
- $('projectionSunrise').textContent=result?(result.sunrise?formatTime(Date.parse(result.sunrise.utc)):'No sunrise'):'—:—:—';
- $('projectionSunset').textContent=result?(result.sunset?formatTime(Date.parse(result.sunset.utc)):'No sunset'):'—:—:—';
+ $('projectionSunrise').textContent=eventResult?(eventResult.sunrise?formatTime(Date.parse(eventResult.sunrise.utc)):'No sunrise'):'—:—:—';
+ $('projectionSunset').textContent=eventResult?(eventResult.sunset?formatTime(Date.parse(eventResult.sunset.utc)):'No sunset'):'—:—:—';
  $('projectionDateZone').textContent=result?localDate(result.timeline[0].t)+' · '+result.timezone:'Choose a location and date';
  $('projectionClock').textContent=result?(realTimeView?'REALTIME \u00b7 ':'SIMULATION · ')+formatTime(currentTime):'SIMULATED SKY';
  $('projectorLive').textContent=realTimeView?'Realtime \u2713':'Realtime';
@@ -333,7 +336,7 @@ async function chooseRealtime(){
   const position=coordinates(),today=await api('/api/today?lat='+position.lat+'&lon='+position.lon);
   const key=JSON.stringify({...calculationInput(),date:today.date});
   if(!result||renderedKey!==key){$('date').value=today.date;if(!await calculateCurrent())return;}
-  else {resultDirty=false;updatePlaceTitle();if(controllerPage&&$('syncHDMI').checked&&!remoteApplying)await publishLocationSelection();}
+  else {resultDirty=false;updatePlaceTitle();if(controllerPage&&$('syncHDMI').checked&&!remoteApplying&&!(typeof idleApplying!=='undefined'&&idleApplying))await publishLocationSelection();}
   enableLiveSky();status('Realtime: sky brightness follows the current solar altitude. Clear-sky estimate; clouds are not included.');
  }catch(error){realtimeRequested=false;status(error.message);}
 }
@@ -434,11 +437,13 @@ function controlSettings(){
   event:$('eventMode').value,today:$('remoteToday').checked&&$('date').value===today,live:realTimeView,projector:$('remoteProjector').checked};
 }
 function queueHDMI(){
+ if(typeof idleApplying!=='undefined'&&idleApplying)return;
  if(!controllerPage||!$('syncHDMI').checked||remoteApplying||hdmiBlocked||resultDirty||calculationPending||!result)return;
  hdmiDirty=true;
  if(!hdmiTimer&&!hdmiSending)hdmiTimer=setTimeout(()=>{hdmiTimer=null;sendHDMI();},120);
 }
 async function sendHDMI(){
+ if(typeof idleApplying!=='undefined'&&idleApplying)return;
  if(hdmiSending||hdmiBlocked||resultDirty||calculationPending||!result||!$('syncHDMI').checked||$('calculate').disabled)return;
  hdmiSending=true;hdmiDirty=false;
  const generation=locationGeneration, expectedRevision=hdmiConfigRevision;
