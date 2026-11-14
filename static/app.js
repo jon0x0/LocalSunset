@@ -63,6 +63,28 @@ function localDate(ms){return new Intl.DateTimeFormat('en-US',{timeZone:result.t
 function setTime(t,fromClock=false,fromPlayback=false){if(!result)return;if(!fromClock){realTimeView=false;realtimeRequested=false;}currentTime=Math.max(result.timeline[0].t,Math.min(result.timeline.at(-1).t,t));$('time').value=(currentTime-result.timeline[0].t)/1000;$('simTime').textContent=formatTime(currentTime);draw();if(!fromClock&&!fromPlayback){if(playing){playbackAnchorTime=currentTime;playbackAnchorWall=Date.now();}queueHDMI();}}
 function atTime(){const a=result.timeline;let index=Math.min(a.length-2,Math.max(0,Math.floor((currentTime-a[0].t)/30000)));const v=a[index],w=a[index+1],f=(currentTime-v.t)/(w.t-v.t);return {az:(v.az+(((w.az-v.az+540)%360)-180)*f+360)%360,alt:v.alt+(w.alt-v.alt)*f,radius:v.radius+(w.radius-v.radius)*f};}
 let zipTimer, zipRequest=0, searchRequest=0, zipFromMatch=false;
+// A single device fix, only on explicit request. Never watch or request at startup.
+$('useLocation').onclick=()=>{
+ const button=$('useLocation'),note=$('locationHint');
+ const message=text=>{note.textContent=text;};
+ if(!window.isSecureContext){message('Device location requires HTTPS (or localhost). Use the HTTPS online version, or enter coordinates here.');return;}
+ if(!navigator.geolocation){message('This browser does not provide device location. Search for an address or enter coordinates.');return;}
+ const generation=locationGeneration,serial=searchRequest;
+ button.disabled=true;message('Requesting a fresh, high-accuracy location…');
+ const fail=error=>{button.disabled=false;message(({1:'Location permission was declined. Your selected location is unchanged. You can try again using your browser’s site permissions.',2:'Device location is unavailable. Check location services and try again.',3:'Location request timed out. Try again outdoors or enter coordinates.'})[error.code]||'Could not get device location. Your selected location is unchanged.');};
+ try{navigator.geolocation.getCurrentPosition(position=>{
+  button.disabled=false;
+  if(generation!==locationGeneration||serial!==searchRequest||calculationPending){message('Location selection changed while locating. Device result ignored; click again to retry.');return;}
+  const {latitude,longitude,accuracy}=position.coords;
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180){fail({});return;}
+  invalidateResult();searchRequest++;zipRequest++;clearTimeout(zipTimer);zipFromMatch=false;
+  $('lat').value=String(latitude);$('lon').value=String(longitude);$('groundOverride').value='';
+  $('saved').value='';$('zip').value='';$('zipCity').value='';$('results').replaceChildren();
+  currentName=`${latitude}°, ${longitude}°`;$('search').value=currentName;updatePlaceTitle();
+  message('Device location selected'+(Number.isFinite(accuracy)?' · reported accuracy ±'+Math.ceil(accuracy)+' m':'')+'. High accuracy requested; GPS, Wi-Fi, cellular or other sources are chosen by your device.');
+  status('Device location selected. Review the coordinates, then trace sunrise and sunset. Save it if you want to keep it as a named location.');
+ },fail,{enableHighAccuracy:true,maximumAge:0,timeout:30000});}catch(error){fail(error);}
+};
 function trailingZip(query){const match=query.match(/(?:^|[\s,])(\d{5}(?:-\d{4})?)(?:\s*,?\s*(?:USA|US|United States))?\s*$/i);return match?match[1]:'';}
 async function fillZipCity(){
  const zip=$('zip').value.trim(), serial=++zipRequest;

@@ -16,6 +16,8 @@ python serve.py
 
 Open http://127.0.0.1:5000 . Choose a place using address search, street + US ZIP, or coordinates. The application starts without a preset location. Ground elevation is sampled automatically; entered height is above ground. Save locations on your own installation for later use.
 
+**Use my location** requests one fresh high-accuracy browser/device fix only when clicked, with reported accuracy. Choose temporary permission if offered; permission lifetime is controlled by your browser. Phones may use GPS together with Wi-Fi/cellular sources; the web API cannot force or identify GPS. No continuous tracking or automatic startup location request is made. Existing last-location startup behavior is retained. Device altitude is not used: ground elevation still comes from the DEM, with the existing manual override. Review the coordinates and trace, or explicitly save a named place. Geolocation requires HTTPS (or localhost); plain HTTP LAN access to the Pi cannot request phone location. Use an HTTPS reverse proxy for the Pi or use address/coordinate input.
+
 Raspberry Pi installation and HDMI kiosk instructions: [raspi/README.md](raspi/README.md).
 
 ## Browser-only website
