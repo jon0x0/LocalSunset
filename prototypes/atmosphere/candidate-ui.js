@@ -12,11 +12,13 @@ function syncTerrainVisibility(){
 const CandidateAtmosphere=(()=>{
  let analysis=null,analysisKey='',skyKey='',skyImage=null,weatherData=null,weatherSite='',gesture=null,scheduled=false;
  const compassStrip=document.createElement('div');compassStrip.className='sky-bearing-strip';compassStrip.setAttribute('aria-label','Compass bearings across the scenery; true north');document.querySelector('.scene').append(compassStrip);
+ const centerBearing=document.createElement('span');centerBearing.className='sky-center-bearing';compassStrip.append(centerBearing);
  const compassMarks=Array.from({length:16},(_,i)=>{const mark=document.createElement('span');mark.className=i%2?'bearing-minor':'bearing-major';mark.textContent=i%2?'':['N','NE','E','SE','S','SW','W','NW'][i/2];compassStrip.append(mark);return mark;});
  function drawCompass(focus,fov){
   const projector=document.body.classList.contains('projector'),status=document.querySelector(projector?'.projector-hud':'.sky-status-strip');
   compassStrip.style.bottom=(status&&getComputedStyle(status).display!=='none'?status.offsetHeight:0)+'px';
   const controls=document.querySelector('.sky-gesture-buttons'),parent=document.body.classList.contains('projector')?document.querySelector('.scene'):document.querySelector('.sky-status-geometry');if(controls.parentNode!==parent)parent.append(controls);controls.style.bottom=(parseFloat(compassStrip.style.bottom)+32)+'px';
+  centerBearing.textContent=((focus%360+360)%360).toFixed(1)+'°';
   compassMarks.forEach((mark,i)=>{const delta=((i*22.5-focus+540)%360)-180,x=50+delta/fov*100;mark.hidden=x<1||x>99;mark.style.left=x+'%';});
  }
  const aod=()=>Math.max(0,Math.min(3,Number($('candidateAod').value)||0));
@@ -56,10 +58,11 @@ const CandidateAtmosphere=(()=>{
   const peak=PeakAnalysis.peak(samples);
   analysis={samples,astro,contact,peak};return analysis;
  }
+ function jumpMilestone(direction){const a=buildAnalysis();if(!a)return;const event=SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);if(!event)return;playing=false;updatePlay();setTime(event.t);updateCountdown();persistView();refresh();}
  function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false);}
  function syncSkyMode(){
-  const button=$('skyRealtime');if(!button)return;
-  button.textContent=realTimeView?'● Realtime · Pause':realtimeRequested?'Starting realtime…':playing?'Playing preview · Go live':'Preview · Go realtime';
+  const button=$('skyRealtime');if(!button)return;const a=buildAnalysis();for(const [id,direction] of [['skyPrevEvent',-1],['skyNextMilestone',1]])if($(id))$(id).disabled=!a||!SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);
+  button.textContent=realTimeView?'Realtime':realtimeRequested?'Starting…':'Go Realtime';
   button.setAttribute('aria-pressed',String(realTimeView));button.classList.toggle('is-live',realTimeView);
   button.title=realTimeView?'Sky follows the real clock. Click to pause.':'Sky shows a selected preview time. Click to follow the real clock.';
  }
@@ -141,8 +144,8 @@ const CandidateAtmosphere=(()=>{
  $('time').addEventListener('input',requestRefresh);
  // Intercept only single-pointer horizontal drags in timeline mode. Pan mode
  // leaves the original production pointer and pinch behavior in place.
- canvas.addEventListener('pointerdown',e=>{if($('candidateGesture').value!=='time'||!result)return;if(!e.isPrimary){e.stopImmediatePropagation();return;}if(e.button!==0)return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY,t:currentTime,active:false};e.stopImmediatePropagation();},{capture:true});
- canvas.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(!gesture.active){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;if(Math.abs(dy)>Math.abs(dx)){gesture=null;return;}gesture.active=true;canvas.setPointerCapture(e.pointerId);}const a=buildAnalysis();if(a.samples.length)setTime(gesture.t-dx/Math.max(1,canvas.getBoundingClientRect().width)*(a.samples.at(-1).t-a.samples[0].t));requestRefresh();},{capture:true});
+ canvas.addEventListener('pointerdown',e=>{if($('candidateGesture').value!=='time'||!result)return;if(!e.isPrimary){e.stopImmediatePropagation();return;}if(e.button!==0)return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY,t:realTimeView?Date.now():currentTime,active:false};e.stopImmediatePropagation();},{capture:true});
+ canvas.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(!gesture.active){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;if(Math.abs(dy)>Math.abs(dx)){gesture=null;return;}gesture.active=true;playing=false;realTimeView=false;realtimeRequested=false;updatePlay();canvas.setPointerCapture(e.pointerId);}const a=buildAnalysis();if(a.samples.length)setTime(gesture.t-dx/Math.max(1,canvas.getBoundingClientRect().width)*(a.samples.at(-1).t-a.samples[0].t));requestRefresh();},{capture:true});
  function finish(e){if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();gesture=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);requestRefresh();}
  $('candidateGesture').onchange=()=>{gesture=null;document.querySelectorAll('[data-gesture]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gesture===$('candidateGesture').value)));canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';};$('candidateGesture').onchange();
  for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,finish,{capture:true});
@@ -178,7 +181,7 @@ const CandidateAtmosphere=(()=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureWeather();});
  // Keep the graph cursor synced to playback, wheel, clocks and saved views.
  setInterval(requestRefresh,1000);
- return {renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass};
+ return {renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
 })();
 
 async function initializeCandidate(){

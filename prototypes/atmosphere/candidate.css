@@ -233,3 +233,13 @@ body.projector .projector-hud .projection-relative>span{font-size:clamp(11px,1vw
 body:not(.projector) .sky-status-geometry{display:flex;align-items:center}
 body:not(.projector) .sky-status-geometry .scene-bottom{display:none}
 body:not(.projector) .sky-gesture-buttons{position:static;margin-left:auto;flex-shrink:0}
+
+.sky-bearing-strip{height:46px}
+.sky-bearing-strip .sky-center-bearing{top:0;bottom:auto;left:50%;font-size:13px;white-space:nowrap}
+.sky-bearing-strip .sky-center-bearing:before{display:none}
+.sky-status-geometry>.compass{display:none}
+.sky-gesture-buttons{flex-wrap:nowrap;gap:4px}
+.sky-status-strip .sky-gesture-buttons .sky-realtime{position:static;min-height:32px}
+.sky-gesture-buttons button:disabled{opacity:.4;cursor:default}
+body:not(.projector) .sky-gesture-buttons{width:100%;justify-content:flex-end}
+@media(max-width:760px),(max-height:540px){.sky-gesture-buttons{gap:3px}.sky-gesture-buttons button,.sky-status-strip .sky-gesture-buttons .sky-realtime{font-size:10px;padding:5px;min-height:40px;white-space:nowrap}}

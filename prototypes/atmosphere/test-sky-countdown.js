@@ -18,3 +18,9 @@ for(const [t,label] of [[0,'local terrain sunset'],[10000,'viewing window begin'
 assert.strictEqual(C.relative(a,window,'sunset',50000).event,null);
 assert(C.relative({...a,contact:25000},[10000,40000],'sunrise',0).label.endsWith('viewing window begin'));
 console.log('Preview status advances through all milestones in actual time order.');
+
+const nav={contact:1000,astro:5000,peak:{t:3000}},windowNav=[2000,4000];
+assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,1).t,4000);
+assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,-1).t,2000);
+assert.strictEqual(C.adjacent(nav,windowNav,'sunset',5000,1),null);
+
