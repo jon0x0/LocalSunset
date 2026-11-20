@@ -248,3 +248,7 @@ body:not(.projector) .sky-gesture-buttons{width:100%;justify-content:flex-end}
 
 .sky-gesture-buttons{flex-wrap:wrap}.sky-gesture-buttons #jumpColorPeak{white-space:nowrap}.sky-gesture-buttons button{flex-shrink:0}
 body.projector .scene{height:100vh!important;height:100dvh!important}
+
+.color-times[hidden]{display:none!important}.sky-event-table{width:100%;font-size:12px;color:#e5edf3;grid-column:1/-1}
+.sky-event-table table{width:100%;border-collapse:collapse}.sky-event-table th{text-align:left;color:#b6c8d4;font-weight:500}.sky-event-table td,.sky-event-table th{padding:5px 7px;border-bottom:1px solid #52687955}.sky-event-table td:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}.sky-event-table label{display:flex;align-items:center;gap:7px;cursor:pointer}.sky-event-table input{width:16px;height:16px;margin:0;flex-shrink:0}.sky-event-table tr.selected{background:#d9ba7d22}.sky-event-table small{display:block;color:#afc1ce;margin-top:5px}#selectedEventCountdown{font-weight:600;color:#f1d5a5;margin:8px 0}.projector .sky-event-table{display:none}
+@media(max-width:760px){.sky-event-table label{min-height:34px}.sky-event-table td{padding:3px 5px}}

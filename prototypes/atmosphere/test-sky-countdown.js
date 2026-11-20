@@ -26,4 +26,6 @@ assert.strictEqual(C.adjacent(nav,windowNav,'sunset',5000,1),null);
 assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',3000,false),'Simulation · sunset peak');
 assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',6500,false),'Simulation · Sunset preview');
 assert.strictEqual(C.displayStatus(nav,windowNav,'sunrise',3000,true),'Realtime · Sunrise sky');
-
+assert.strictEqual(C.countdownTo({t:90000,label:'Sunset peak'},30000).label,'Sunset peak in 00:01:00');
+assert.strictEqual(C.countdownTo({t:30000,label:'Sunset peak'},90000).label,'Sunset peak · elapsed 00:01:00');
+assert.strictEqual(C.countdownTo({t:null},0),null);

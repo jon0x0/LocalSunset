@@ -59,6 +59,16 @@ const CandidateAtmosphere=(()=>{
   analysis={samples,astro,contact,peak};return analysis;
  }
  function jumpMilestone(direction){const a=buildAnalysis();if(!a)return;const event=SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);if(!event)return;playing=false;updatePlay();setTime(event.t);updateCountdown();persistView();refresh();}
+ let countdownSelection=null,eventRowsKey='';
+ function tableEvents(a,window,mode){return [{key:'contact',t:a.contact,label:'Local terrain '+mode},{key:'start',t:window?.[0],label:'Viewing window start'},{key:'peak',t:a.peak?.t,label:mode[0].toUpperCase()+mode.slice(1)+' peak'},{key:'end',t:window?.[1],label:'Viewing window end'},{key:'astro',t:a.astro,label:'Astronomical '+mode}].filter(e=>e.key!=='contact'||TerrainOption.enabled);}
+ function liveTiming(a,window,mode){const chosen=tableEvents(a,window,mode).find(e=>e.key===countdownSelection&&Number.isFinite(e.t));return chosen?SkyCountdown.countdownTo(chosen,Date.now()):SkyCountdown.next(a,window,mode,Date.now());}
+ function refreshEventTable(a,window,mode){
+  const events=tableEvents(a,window,mode),now=realTimeView?Date.now():currentTime,chosen=events.find(e=>e.key===countdownSelection&&Number.isFinite(e.t)),timing=chosen?SkyCountdown.countdownTo(chosen,now):SkyCountdown.next(a,window,mode,now),selected=chosen||events.find(e=>e.t===timing.event?.t);
+  $('selectedEventCountdown').textContent=(realTimeView?'Realtime countdown: ':'From simulated time: ')+timing.label;
+  $('skyEventZone').textContent='Times in '+result.timezone+' · select an event to follow its countdown.';
+  const key=JSON.stringify([events,countdownSelection,selected?.key,result.timezone]);if(key===eventRowsKey)return;eventRowsKey=key;
+  $('skyEventRows').replaceChildren(...events.map(event=>{const row=document.createElement('tr'),cell=document.createElement('td'),label=document.createElement('label'),radio=document.createElement('input'),time=document.createElement('td');radio.type='radio';radio.name='skyCountdownEvent';radio.value=event.key;radio.checked=event.key===selected?.key;radio.disabled=!Number.isFinite(event.t);radio.onchange=()=>{countdownSelection=event.key;eventRowsKey='';refresh();};label.append(radio,document.createTextNode(event.label));cell.append(label);time.textContent=Number.isFinite(event.t)?stamp(event.t):'Unavailable';row.append(cell,time);row.classList.toggle('selected',radio.checked);return row;}));
+ }
  function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false);}
  function syncSkyMode(){
   const button=$('skyRealtime');if(!button)return;const a=buildAnalysis();for(const [id,direction] of [['skyPrevEvent',-1],['skyNextMilestone',1]])if($(id))$(id).disabled=!a||!SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);
@@ -77,11 +87,11 @@ const CandidateAtmosphere=(()=>{
  }
  function refreshProjector(){refreshCloudEstimate();
   if(!result||!document.body.classList.contains('projector'))return;
-  const a=buildAnalysis();if(!a)return;const mode=$('eventMode').value,window=PeakAnalysis.windowAround(a.samples,a.peak,padding()),timing=realTimeView?SkyCountdown.next(a,window,mode,Date.now()):SkyCountdown.relative(a,window,mode,currentTime);
+  const a=buildAnalysis();if(!a)return;const mode=$('eventMode').value,window=PeakAnalysis.windowAround(a.samples,a.peak,padding()),timing=realTimeView?liveTiming(a,window,mode):SkyCountdown.relative(a,window,mode,currentTime);
   const clock=realTimeView?Date.now():currentTime;
   document.querySelector('.projection-countdown > span').textContent=SkyCountdown.displayStatus(a,window,mode,clock,realTimeView,playing);
   renderClock('projectionCurrentTime',formatClock(clock,result.timezone));
-  $('projectionCountdownLabel').textContent=realTimeView?'NEXT EVENT · LIVE CLOCK':'From current simulated time:';
+  $('projectionCountdownLabel').textContent=realTimeView?(countdownSelection?'SELECTED EVENT · LIVE CLOCK':'NEXT EVENT · LIVE CLOCK'):'From current simulated time:';
   $('projectionCountdown').textContent=timing.label;
   $('projectionClock').textContent=(realTimeView?'REALTIME · ':'SIMULATION · ')+formatClock(clock,result.timezone);
   if(!calculationPending&&!/failed|error/i.test($('status').textContent))$('projectionStatus').textContent=realTimeView?'Live sky follows the current clock.':'Preview · Swipe through time or select Realtime.';
@@ -94,11 +104,11 @@ const CandidateAtmosphere=(()=>{
   $('astroTime').textContent=stamp(a.astro);$('contactTime').textContent=stamp(a.contact);
   $('colorPeakTime').textContent=a.peak?stamp(a.peak.t):'No qualifying color peak';
   $('jumpColorPeak').disabled=!a.peak;
-  const window=PeakAnalysis.windowAround(a.samples,a.peak,padding());
-  const timing=realTimeView?SkyCountdown.next(a,window,mode,Date.now()):SkyCountdown.relative(a,window,mode,currentTime);
-  $('skyNextEvent').querySelector('small').textContent=realTimeView?'NEXT MILESTONE · LIVE CLOCK':'From current simulated time:';
+  const window=PeakAnalysis.windowAround(a.samples,a.peak,padding());refreshEventTable(a,window,mode);
+  const timing=realTimeView?liveTiming(a,window,mode):SkyCountdown.relative(a,window,mode,currentTime);
+  $('skyNextEvent').querySelector('small').textContent=realTimeView?(countdownSelection?'SELECTED EVENT · LIVE CLOCK':'NEXT MILESTONE · LIVE CLOCK'):'From current simulated time:';
   $('skyNextEventText').textContent=timing.label;
-  $('skyNextEventTime').textContent=timing.event?stamp(timing.event.t)+' · '+result.timezone+' · '+(realTimeView?'selected date':timing.event.label):(a.samples.length?localDate(a.samples[0].t):'Choose another date or event');
+  $('skyNextEventTime').textContent=timing.event?stamp(timing.event.t)+' · '+result.timezone+' · '+timing.event.label:(a.samples.length?localDate(a.samples[0].t):'Choose another date or event');
   const bestWindowText='Recommended '+mode+' viewing window: '+(window?stamp(window[0])+' – '+stamp(window[1]):'Unavailable');$('skyBestWindow').textContent=bestWindowText;$('dockBestWindow').textContent=bestWindowText;
   $('colorWindow').textContent=a.peak?stamp(window[0])+' – '+stamp(window[1]):'No recommended window';
   const s=a.samples;$('colorTime').disabled=!s.length;$('colorTime').max=Math.max(0,s.length-1);
