@@ -223,3 +223,13 @@ body.projector .projector-hud .projection-relative>span{font-size:clamp(11px,1vw
 .sky-bearing-strip span:before{content:'';display:block;margin:0 auto 1px;width:1px;height:7px;background:currentColor;opacity:.85}
 .sky-bearing-strip .bearing-minor:before{height:4px;opacity:.55}
 .sky-bearing-strip [hidden]{display:none}
+
+.sky-gesture-buttons{position:absolute;right:10px;bottom:110px;z-index:5;display:flex;gap:4px;pointer-events:auto}
+.sky-gesture-buttons button{background:#0b1724dd;color:#e7edf2;border:1px solid #81909b;border-radius:5px;padding:6px 9px;font:12px system-ui,sans-serif;cursor:pointer;min-height:32px}
+.sky-gesture-buttons button[aria-pressed=true]{background:#e3c89c;color:#14212b;border-color:#f6dfb9}
+.sky-gesture-buttons button:focus-visible{outline:2px solid #9bd8ff;outline-offset:2px}
+@media(max-width:760px),(max-height:540px){.sky-gesture-buttons{right:8px}.sky-gesture-buttons button{min-height:40px;font-size:11px;padding:5px 8px}}
+
+body:not(.projector) .sky-status-geometry{display:flex;align-items:center}
+body:not(.projector) .sky-status-geometry .scene-bottom{display:none}
+body:not(.projector) .sky-gesture-buttons{position:static;margin-left:auto;flex-shrink:0}

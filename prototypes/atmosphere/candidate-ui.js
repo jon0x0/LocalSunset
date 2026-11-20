@@ -16,6 +16,7 @@ const CandidateAtmosphere=(()=>{
  function drawCompass(focus,fov){
   const projector=document.body.classList.contains('projector'),status=document.querySelector(projector?'.projector-hud':'.sky-status-strip');
   compassStrip.style.bottom=(status&&getComputedStyle(status).display!=='none'?status.offsetHeight:0)+'px';
+  const controls=document.querySelector('.sky-gesture-buttons'),parent=document.body.classList.contains('projector')?document.querySelector('.scene'):document.querySelector('.sky-status-geometry');if(controls.parentNode!==parent)parent.append(controls);controls.style.bottom=(parseFloat(compassStrip.style.bottom)+32)+'px';
   compassMarks.forEach((mark,i)=>{const delta=((i*22.5-focus+540)%360)-180,x=50+delta/fov*100;mark.hidden=x<1||x>99;mark.style.left=x+'%';});
  }
  const aod=()=>Math.max(0,Math.min(3,Number($('candidateAod').value)||0));
@@ -143,7 +144,7 @@ const CandidateAtmosphere=(()=>{
  canvas.addEventListener('pointerdown',e=>{if($('candidateGesture').value!=='time'||!result)return;if(!e.isPrimary){e.stopImmediatePropagation();return;}if(e.button!==0)return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY,t:currentTime,active:false};e.stopImmediatePropagation();},{capture:true});
  canvas.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(!gesture.active){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;if(Math.abs(dy)>Math.abs(dx)){gesture=null;return;}gesture.active=true;canvas.setPointerCapture(e.pointerId);}const a=buildAnalysis();if(a.samples.length)setTime(gesture.t-dx/Math.max(1,canvas.getBoundingClientRect().width)*(a.samples.at(-1).t-a.samples[0].t));requestRefresh();},{capture:true});
  function finish(e){if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();gesture=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);requestRefresh();}
- $('candidateGesture').onchange=()=>{gesture=null;canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';};$('candidateGesture').onchange();
+ $('candidateGesture').onchange=()=>{gesture=null;document.querySelectorAll('[data-gesture]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gesture===$('candidateGesture').value)));canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';};$('candidateGesture').onchange();
  for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,finish,{capture:true});
  const weatherPreference='localsunset.atmosphere.candidate.weatherEnabled',weatherCache='localsunset.atmosphere.candidate.weatherCache.v3';
  let weatherRequest=null,weatherRequestId=0,weatherPendingKey='',weatherFetchedAt=0;
