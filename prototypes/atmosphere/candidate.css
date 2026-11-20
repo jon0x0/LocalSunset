@@ -278,3 +278,8 @@ body.projector .projector-hud,body.projector .sky-bearing-strip{background:none;
 body.sky-only .sky-only-recovery{display:block;cursor:pointer}
 body.projector.sky-only .sky-gesture-buttons,body.projector.sky-only .sky-bearing-strip{display:none!important}
 .sky-only-recovery:focus-visible{outline:2px solid #9bd8ff;outline-offset:3px}
+
+.sky-only-recovery{top:9vh;right:3vw;bottom:auto;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s ease}
+body.sky-only.sky-controls-awake .sky-only-recovery,body.sky-only .sky-only-recovery:focus-visible{opacity:1;visibility:visible;pointer-events:auto}
+body.projector.sky-only.sky-controls-awake,body.projector.sky-only.sky-controls-awake canvas{cursor:default}
+@media(max-width:720px){.sky-only-recovery{top:16vh;left:3vw;right:auto}}

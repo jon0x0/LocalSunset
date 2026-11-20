@@ -3,6 +3,14 @@
  const about=document.createElement('a');about.href='about.html';about.textContent='About';about.style.cssText='font-size:13px;margin-inline:10px';document.getElementById('projectorToggle').before(about);
  const recoverSky=document.createElement('button');recoverSky.type='button';recoverSky.className='sky-only-recovery';recoverSky.textContent='Show controls';recoverSky.title='Leave Sky only mode (Escape)';document.body.append(recoverSky);
  function restoreSkyControls(){const option=document.getElementById('sceneSkyOnly');option.checked=false;document.body.classList.remove('sky-only');option.dispatchEvent(new Event('change',{bubbles:true}));if(typeof draw==='function')draw();}
+ let recoveryTimer=null,lastSkyButtonRect=null;
+ function rememberSkyButton(){if(document.body.classList.contains('sky-only'))return;const rect=document.getElementById('projectorSkyOnly').getBoundingClientRect();if(rect.width&&rect.height)lastSkyButtonRect={left:rect.left,top:rect.top};}
+ function revealSkyRecovery(){if(!document.body.classList.contains('sky-only'))return;if(lastSkyButtonRect){recoverSky.style.left=lastSkyButtonRect.left+'px';recoverSky.style.top=lastSkyButtonRect.top+'px';recoverSky.style.right='auto';}document.body.classList.add('sky-controls-awake');clearTimeout(recoveryTimer);recoveryTimer=setTimeout(()=>{if(recoverSky.matches(':focus-visible'))return;document.body.classList.remove('sky-controls-awake');},3000);}
+ document.addEventListener('pointermove',revealSkyRecovery,{passive:true});
+ document.addEventListener('pointerdown',()=>{rememberSkyButton();revealSkyRecovery();},{capture:true,passive:true});
+ new MutationObserver(()=>{if(document.body.classList.contains('sky-only')){if(!recoverSky.dataset.active){recoverSky.dataset.active='true';revealSkyRecovery();}}else{delete recoverSky.dataset.active;document.body.classList.remove('sky-controls-awake');clearTimeout(recoveryTimer);rememberSkyButton();}}).observe(document.body,{attributes:true,attributeFilter:['class']});
+ window.addEventListener('resize',()=>{lastSkyButtonRect=null;recoverSky.style.left='';recoverSky.style.top='';recoverSky.style.right='';rememberSkyButton();revealSkyRecovery();});
+ rememberSkyButton();revealSkyRecovery();
  recoverSky.onclick=restoreSkyControls;
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.body.classList.contains('sky-only')){event.preventDefault();event.stopImmediatePropagation();restoreSkyControls();}},{capture:true});
  const main=document.querySelector('main'),scene=document.querySelector('.scene'),panel=document.querySelector('.atmosphere-panel');
