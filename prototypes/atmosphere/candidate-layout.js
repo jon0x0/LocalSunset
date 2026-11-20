@@ -1,6 +1,10 @@
 /* Move the original controls, retaining their IDs, listeners and state. */
 (()=>{
  const about=document.createElement('a');about.href='about.html';about.textContent='About';about.style.cssText='font-size:13px;margin-inline:10px';document.getElementById('projectorToggle').before(about);
+ const recoverSky=document.createElement('button');recoverSky.type='button';recoverSky.className='sky-only-recovery';recoverSky.textContent='Show controls';recoverSky.title='Leave Sky only mode (Escape)';document.body.append(recoverSky);
+ function restoreSkyControls(){const option=document.getElementById('sceneSkyOnly');option.checked=false;document.body.classList.remove('sky-only');option.dispatchEvent(new Event('change',{bubbles:true}));if(typeof draw==='function')draw();}
+ recoverSky.onclick=restoreSkyControls;
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.body.classList.contains('sky-only')){event.preventDefault();event.stopImmediatePropagation();restoreSkyControls();}},{capture:true});
  const main=document.querySelector('main'),scene=document.querySelector('.scene'),panel=document.querySelector('.atmosphere-panel');
  const workbench=document.createElement('section');workbench.className='sky-workbench';workbench.setAttribute('aria-label','Sky preview and quick controls');
  scene.before(workbench);workbench.append(scene);

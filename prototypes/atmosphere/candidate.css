@@ -271,3 +271,10 @@ body.projector .scene{height:100vh!important;height:100dvh!important}
 }
 
 .sky-event-table td{padding:3px 2px;font-size:12px;font-variant-numeric:tabular-nums}.sky-event-table small{margin-top:2px}.sky-status-strip>.sky-event-table{pointer-events:none}
+
+/* Projector overlays must not introduce a horizontal band across the sky. */
+body.projector .projector-hud,body.projector .sky-bearing-strip{background:none;text-shadow:0 1px 4px #000,0 0 8px #000}
+.sky-only-recovery{display:none;position:fixed;right:12px;bottom:12px;z-index:10000;border:1px solid #b9c9d077;border-radius:5px;padding:9px 12px;background:#10202b99;color:#f4ecd9;font:12px system-ui;cursor:pointer;min-height:40px}
+body.sky-only .sky-only-recovery{display:block;cursor:pointer}
+body.projector.sky-only .sky-gesture-buttons,body.projector.sky-only .sky-bearing-strip{display:none!important}
+.sky-only-recovery:focus-visible{outline:2px solid #9bd8ff;outline-offset:3px}
