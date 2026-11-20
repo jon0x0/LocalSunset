@@ -1,0 +1,34 @@
+<section class="atmosphere-panel" aria-label="Atmospheric sunset prediction">
+ <h2>Sunset / sunrise color</h2>
+ <div class="atmosphere-controls">
+  <label class="check-label"><input id="atmosphereEnabled" type="checkbox" checked> Atmospheric sky (off = production sky)</label>
+  <label>Aerosol optical depth <input id="candidateAod" type="number" min="0" max="3" step=".02" value=".12"></label>
+  <label>Recommended window ± minutes <input id="peakPadding" type="number" min="1" max="45" step="1" value="10"></label>
+  <label>Sky dragging <select id="candidateGesture"><option value="time">Swipe through time</option><option value="pan">Pan panorama</option></select></label>
+ </div>
+ <div class="color-times">
+  <div><small id="astroLabel">Astronomical sunset</small><strong id="astroTime">—</strong></div>
+  <div><small id="contactLabel">Terrain sunset</small><strong id="contactTime">—</strong></div>
+  <div><small>Modeled color peak</small><strong id="colorPeakTime">—</strong><button id="jumpColorPeak" type="button">View peak</button></div>
+  <div><small>Recommended viewing window</small><strong id="colorWindow">—</strong></div>
+ </div>
+ <label>Event timeline <input id="colorTime" type="range" min="0" max="120" value="60" step="1" aria-label="Sunset color timeline"></label>
+ <p id="colorTimeLabel" role="status">Choose a location and calculate.</p>
+ <div class="chart-legend" aria-label="Graph legend">
+  <p><span class="legend-swatch brightness"></span><strong>Gold curve: relative sky brightness</strong><br>0–100% of the brightest sky in this event timeline.</p>
+  <p><span class="legend-swatch potential"></span><strong>Coral curve: color potential</strong><br>Experimental 0–100 score combining colorfulness and brightness. This is not hue.</p>
+  <p><span class="legend-swatch strip"></span><strong>Color strip: modeled sky color</strong><br>Shows the predicted color and hue changes over time.</p>
+ </div>
+ <label class="check-label"><input id="showColorComponents" type="checkbox"> Compare colorfulness and warm-color strength</label>
+ <div id="colorComponents" hidden>
+  <div class="chart-legend">
+   <p><span class="legend-swatch colorfulness"></span><strong>Purple dashed: colorfulness (0–100)</strong><br>How strongly the color channels differ, regardless of brightness. Can remain high in a very dark sky.</p>
+   <p><span class="legend-swatch warmth"></span><strong>Orange dashed: warm-color strength (0–100)</strong><br>Red excess over blue, weighted by visible brightness. An experimental warm-color indicator, not a hue angle.</p>
+  </div>
+  <p id="componentReadout" class="hint"></p>
+  <p class="hint">The coral curve still determines the main peak and recommended window.</p>
+ </div>
+ <canvas id="colorChart" width="900" height="302" aria-label="Sunset brightness and color potential graph"></canvas>
+ <p class="hint">Markers: blue = astronomical sunrise/sunset · gray = terrain contact · bright green = color peak · white = selected time (shares the green line at the peak). Shaded area = recommended window. All times use the location’s time zone.</p><p id="colorNote" class="hint">Modeled atmosphere · no live weather. Gold: relative brightness; coral: experimental color potential. Peak and window are estimates, not validated beauty forecasts. Window defaults to ±10 minutes around the peak.</p>
+ <details><summary>Weather forecast details</summary><label class="check-label"><input id="candidateUseWeather" type="checkbox" aria-describedby="candidateWeatherStatus"> Use local cloud estimate</label><p id="forecastCloudDetail" class="hint">Enable the local cloud estimate to download and show forecast percentages.</p><p id="candidateWeatherStatus" class="hint" role="status">When enabled, forecasts download and refresh automatically for the selected location. This setting is remembered; coordinates are sent to Open-Meteo. Illustrative cloud layers; no observed cloud geometry.</p><a href="https://open-meteo.com/">Weather data by Open-Meteo</a></details>
+</section>

@@ -92,3 +92,8 @@ python -m unittest discover -s tests -v
 ```
 
 JavaScript regression scripts are in `tests/`; run them from the repository root using a modern Node.js runtime. Tests use synthetic or public reference coordinates, never installation-saved places. Astronomy fixtures cross-check the JavaScript renderer against Python Astronomy Engine.
+
+
+## Atmospheric sky and viewing forecast
+
+The browser edition includes an offline spherical single-scattering atmosphere, terrain-aware sky preview, swipe/slider timeline, modeled color peak and configurable viewing window. Optional Open-Meteo forecasts add illustrative cloud layers, temperature and wind for the selected time, with remembered opt-in and automatic refresh. Terrain downloads can be disabled while retaining required point ground elevation. The linked About page explains physics, metrics, data attribution and model limitations. Existing browser saved places and the two-hour return to realtime are retained. The atmospheric build sources are explicitly included in the public release allowlist; no private device configuration is published.
