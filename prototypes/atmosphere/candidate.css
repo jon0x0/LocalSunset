@@ -217,3 +217,9 @@ body.projector .projector-hud .projection-relative>span{font-size:clamp(11px,1vw
 
 #skyCloudEstimate{font-size:10px;line-height:1.35;color:#c1d8e5;white-space:normal}#dockCloudEstimate{font-size:11px;line-height:1.4;color:#c1d8e5;margin:3px 0 5px}#projectorCloudEstimate{font-size:clamp(11px,1.2vw,19px);color:#c1d8e5}
 #skyCloudEstimate[hidden],#dockCloudEstimate[hidden],#projectorCloudEstimate[hidden]{display:none!important}
+
+.sky-bearing-strip{position:absolute;left:0;right:0;height:28px;z-index:4;pointer-events:none;overflow:hidden;background:linear-gradient(transparent,rgba(5,12,18,.65));color:#fff3dc;font:600 12px/18px system-ui,sans-serif;text-shadow:0 1px 3px #000}
+.sky-bearing-strip span{position:absolute;bottom:1px;transform:translateX(-50%);text-align:center;min-width:26px}
+.sky-bearing-strip span:before{content:'';display:block;margin:0 auto 1px;width:1px;height:7px;background:currentColor;opacity:.85}
+.sky-bearing-strip .bearing-minor:before{height:4px;opacity:.55}
+.sky-bearing-strip [hidden]{display:none}

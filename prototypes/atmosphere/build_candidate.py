@@ -36,6 +36,7 @@ for group, folder in [(shared, 'static'), (owned, 'web')]:
    anchor=' const layers=result.terrain.layers;'
    assert anchor in text
    text=text.replace(anchor," if(typeof CandidateAtmosphere!=='undefined')CandidateAtmosphere.renderSky(ctx,{sun,focus,scale,base,w,h});\n"+anchor)
+   text=text.replace(" $('sunPosition').textContent="," if(typeof CandidateAtmosphere!=='undefined')CandidateAtmosphere.drawCompass(focus,fov);\n $('sunPosition').textContent=")
    text=text.replace('function showResult(preserveView=false){','function showResult(preserveView=false){if(typeof CandidateAtmosphere!==\'undefined\')CandidateAtmosphere.invalidate();')
   target=OUT/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text,encoding='utf-8')
 html=(ROOT/'static/index.html').read_text(encoding='utf-8').replace('/static/','./').replace('<body>','<body data-browser-edition="true">')

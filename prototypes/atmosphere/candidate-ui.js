@@ -11,6 +11,13 @@ function syncTerrainVisibility(){
 }
 const CandidateAtmosphere=(()=>{
  let analysis=null,analysisKey='',skyKey='',skyImage=null,weatherData=null,weatherSite='',gesture=null,scheduled=false;
+ const compassStrip=document.createElement('div');compassStrip.className='sky-bearing-strip';compassStrip.setAttribute('aria-label','Compass bearings across the scenery; true north');document.querySelector('.scene').append(compassStrip);
+ const compassMarks=Array.from({length:16},(_,i)=>{const mark=document.createElement('span');mark.className=i%2?'bearing-minor':'bearing-major';mark.textContent=i%2?'':['N','NE','E','SE','S','SW','W','NW'][i/2];compassStrip.append(mark);return mark;});
+ function drawCompass(focus,fov){
+  const projector=document.body.classList.contains('projector'),status=document.querySelector(projector?'.projector-hud':'.sky-status-strip');
+  compassStrip.style.bottom=(status&&getComputedStyle(status).display!=='none'?status.offsetHeight:0)+'px';
+  compassMarks.forEach((mark,i)=>{const delta=((i*22.5-focus+540)%360)-180,x=50+delta/fov*100;mark.hidden=x<1||x>99;mark.style.left=x+'%';});
+ }
  const aod=()=>Math.max(0,Math.min(3,Number($('candidateAod').value)||0));
  const padding=()=>Math.max(1,Math.min(45,Math.round(Number($('peakPadding').value)||10)));
  const site=()=>renderedKey?JSON.parse(renderedKey):null;
@@ -170,7 +177,7 @@ const CandidateAtmosphere=(()=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureWeather();});
  // Keep the graph cursor synced to playback, wheel, clocks and saved views.
  setInterval(requestRefresh,1000);
- return {renderSky,invalidate,refresh,buildAnalysis,refreshProjector};
+ return {renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass};
 })();
 
 async function initializeCandidate(){
