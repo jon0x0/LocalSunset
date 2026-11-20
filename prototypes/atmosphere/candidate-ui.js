@@ -17,7 +17,7 @@ const CandidateAtmosphere=(()=>{
  function drawCompass(focus,fov){
   const projector=document.body.classList.contains('projector'),status=document.querySelector(projector?'.projector-hud':'.sky-status-strip');
   compassStrip.style.bottom=(status&&getComputedStyle(status).display!=='none'?status.offsetHeight:0)+'px';
-  const controls=document.querySelector('.sky-gesture-buttons'),parent=document.body.classList.contains('projector')?document.querySelector('.scene'):document.querySelector('.sky-status-geometry');if(controls.parentNode!==parent)parent.append(controls);controls.style.bottom=(parseFloat(compassStrip.style.bottom)+32)+'px';
+  const controls=document.querySelector('.sky-gesture-buttons'),mobile=matchMedia('(max-width:760px), (max-width:1100px) and (max-height:540px)').matches,parent=projector?document.querySelector('.scene'):document.querySelector(mobile?'.compact-dock':'.sky-status-geometry');if(controls.parentNode!==parent){if(mobile&&!projector)parent.prepend(controls);else parent.append(controls);}controls.style.bottom=(parseFloat(compassStrip.style.bottom)+32)+'px';
   centerBearing.textContent=((focus%360+360)%360).toFixed(1)+'°';
   compassMarks.forEach((mark,i)=>{const delta=((i*22.5-focus+540)%360)-180,x=50+delta/fov*100;mark.hidden=x<1||x>99;mark.style.left=x+'%';});
  }
@@ -58,7 +58,7 @@ const CandidateAtmosphere=(()=>{
   const peak=PeakAnalysis.peak(samples);
   analysis={samples,astro,contact,peak};return analysis;
  }
- function jumpMilestone(direction){const a=buildAnalysis();if(!a)return;const event=SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);if(!event)return;playing=false;updatePlay();setTime(event.t);updateCountdown();persistView();refresh();}
+ function jumpMilestone(direction){const a=buildAnalysis();if(!a)return;if(realTimeView){const event=SkyCountdown.cycleEvent(tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value),countdownSelection,Date.now(),direction);if(event){countdownSelection=event.key;eventRowsKey='';refresh();}return;}const event=SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);if(!event)return;playing=false;updatePlay();setTime(event.t);updateCountdown();persistView();refresh();}
  let countdownSelection=null,eventRowsKey='';
  function tableEvents(a,window,mode){return [{key:'contact',t:a.contact,label:'Local terrain '+mode},{key:'start',t:window?.[0],label:'Viewing window start'},{key:'peak',t:a.peak?.t,label:mode[0].toUpperCase()+mode.slice(1)+' peak'},{key:'end',t:window?.[1],label:'Viewing window end'},{key:'astro',t:a.astro,label:'Astronomical '+mode}].filter(e=>e.key!=='contact'||TerrainOption.enabled);}
  function liveTiming(a,window,mode){const chosen=tableEvents(a,window,mode).find(e=>e.key===countdownSelection&&Number.isFinite(e.t));return chosen?SkyCountdown.countdownTo(chosen,Date.now()):SkyCountdown.next(a,window,mode,Date.now());}
@@ -72,7 +72,7 @@ const CandidateAtmosphere=(()=>{
  }
  function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false);}
  function syncSkyMode(){
-  const button=$('skyRealtime');if(!button)return;const a=buildAnalysis();for(const [id,direction] of [['skyPrevEvent',-1],['skyNextMilestone',1]])if($(id))$(id).disabled=!a||!SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);
+  const button=$('skyRealtime');if(!button)return;const a=buildAnalysis();for(const [id,direction] of [['skyPrevEvent',-1],['skyNextMilestone',1]])if($(id))$(id).disabled=!a||!(realTimeView?tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value).some(e=>Number.isFinite(e.t)):SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction));
   button.textContent=realTimeView?'Realtime':realtimeRequested?'Starting…':'Go Realtime';
   button.setAttribute('aria-pressed',String(realTimeView));button.classList.toggle('is-live',realTimeView);
   button.title=realTimeView?'Sky follows the real clock. Click to pause.':'Sky shows a selected preview time. Click to follow the real clock.';
@@ -152,7 +152,7 @@ const CandidateAtmosphere=(()=>{
  $('peakPadding').onchange=()=>{$('peakPadding').value=padding();refresh();};
  $('colorTime').oninput=()=>{const a=buildAnalysis();if(a&&a.samples.length){playing=false;updatePlay();setTime(a.samples[+$('colorTime').value].t);refresh();}};
  $('jumpColorPeak').onclick=()=>{const a=buildAnalysis();if(a&&a.peak){playing=false;updatePlay();setTime(a.peak.t);centerSunset();refresh();}};
- $('eventMode').addEventListener('change',()=>{invalidate();requestRefresh();});
+ $('eventMode').addEventListener('change',()=>{countdownSelection=null;invalidate();requestRefresh();});
  $('time').addEventListener('input',requestRefresh);
  // Intercept only single-pointer horizontal drags in timeline mode. Pan mode
  // leaves the original production pointer and pinch behavior in place.

@@ -29,6 +29,7 @@
  }
  function displayStatus(a,window,mode,time,live,playing=false){const type=mode==='sunrise'?'Sunrise':'Sunset';if(live)return 'Realtime · '+type+' sky';const event=milestones(a,window,mode).find(e=>Math.abs(e.t-time)<=500);return (playing?'Simulation playing':'Simulation')+' · '+(event?event.label:type+' preview');}
  function countdownTo(event,now){if(!event||!Number.isFinite(event.t))return null;const delta=event.t-now,seconds=Math.ceil(Math.abs(delta)/1000),pad=n=>String(n).padStart(2,'0'),duration=pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds/60)%60)+':'+pad(seconds%60);return {event,label:event.label+(delta>=0?' in ':' · elapsed ')+duration};}
- const api={next,relative,adjacent,displayStatus,countdownTo};root.SkyCountdown=api;if(typeof module!=='undefined')module.exports=api;
+ function cycleEvent(events,key,now,direction){const list=events.filter(e=>Number.isFinite(e.t)).sort((a,b)=>a.t-b.t);if(!list.length)return null;const index=list.findIndex(e=>e.key===key);if(index>=0)return list[(index+(direction<0?-1:1)+list.length)%list.length];return direction<0?[...list].reverse().find(e=>e.t<now)||list[list.length-1]:list.find(e=>e.t>=now)||list[0];}
+ const api={cycleEvent,next,relative,adjacent,displayStatus,countdownTo};root.SkyCountdown=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 

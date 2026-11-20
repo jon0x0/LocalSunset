@@ -283,3 +283,12 @@ body.projector.sky-only .sky-gesture-buttons,body.projector.sky-only .sky-bearin
 body.sky-only.sky-controls-awake .sky-only-recovery,body.sky-only .sky-only-recovery:focus-visible{opacity:1;visibility:visible;pointer-events:auto}
 body.projector.sky-only.sky-controls-awake,body.projector.sky-only.sky-controls-awake canvas{cursor:default}
 @media(max-width:720px){.sky-only-recovery{top:16vh;left:3vw;right:auto}}
+
+@media(max-width:760px),(max-width:1100px) and (max-height:540px){
+ .sky-gesture-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;min-width:0}
+ body:not(.projector) .compact-dock>.sky-gesture-buttons{position:static;width:100%;margin:0 0 7px;grid-column:1/-1}
+ .sky-gesture-buttons button{width:100%;min-width:0;white-space:normal;font-size:11px;min-height:40px;padding:5px}
+ .sky-gesture-buttons #centerSunset{grid-column:span 2}
+ body.projector .sky-gesture-buttons{position:fixed;left:8px;right:8px;bottom:8px!important;width:auto;z-index:20}
+ body.projector:not(.sky-only) .projector-hud{padding-bottom:105px}
+}

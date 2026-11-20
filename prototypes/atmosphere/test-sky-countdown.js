@@ -29,3 +29,8 @@ assert.strictEqual(C.displayStatus(nav,windowNav,'sunrise',3000,true),'Realtime 
 assert.strictEqual(C.countdownTo({t:90000,label:'Sunset peak'},30000).label,'Sunset peak in 00:01:00');
 assert.strictEqual(C.countdownTo({t:30000,label:'Sunset peak'},90000).label,'Sunset peak · elapsed 00:01:00');
 assert.strictEqual(C.countdownTo({t:null},0),null);
+const cycle=[{key:'a',t:1000},{key:'b',t:3000},{key:'c',t:2000},{key:'missing',t:null}];
+assert.strictEqual(C.cycleEvent(cycle,null,1500,1).key,'c');
+assert.strictEqual(C.cycleEvent(cycle,'c',1500,1).key,'b');
+assert.strictEqual(C.cycleEvent(cycle,'b',1500,1).key,'a');
+assert.strictEqual(C.cycleEvent(cycle,'a',1500,-1).key,'b');
