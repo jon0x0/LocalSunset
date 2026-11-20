@@ -79,7 +79,7 @@ const CandidateAtmosphere=(()=>{
   if(!result||!document.body.classList.contains('projector'))return;
   const a=buildAnalysis();if(!a)return;const mode=$('eventMode').value,window=PeakAnalysis.windowAround(a.samples,a.peak,padding()),timing=realTimeView?SkyCountdown.next(a,window,mode,Date.now()):SkyCountdown.relative(a,window,mode,currentTime);
   const clock=realTimeView?Date.now():currentTime;
-  document.querySelector('.projection-countdown > span').textContent=realTimeView?'CURRENT LOCAL TIME · REALTIME':'SIMULATED LOCAL TIME · PREVIEW';
+  document.querySelector('.projection-countdown > span').textContent=SkyCountdown.displayStatus(a,window,mode,clock,realTimeView,playing);
   renderClock('projectionCurrentTime',formatClock(clock,result.timezone));
   $('projectionCountdownLabel').textContent=realTimeView?'NEXT EVENT · LIVE CLOCK':'From current simulated time:';
   $('projectionCountdown').textContent=timing.label;
@@ -107,6 +107,7 @@ const CandidateAtmosphere=(()=>{
   const show=$('showColorComponents').checked;$('colorComponents').hidden=!show;
   if(show&&s.length){const nearest=s.reduce((a,b)=>Math.abs(a.t-currentTime)<=Math.abs(b.t-currentTime)?a:b),warm=s.reduce((a,b)=>a.warmStrength>=b.warmStrength?a:b);$('componentReadout').textContent='At '+stamp(nearest.t)+': colorfulness '+nearest.colorfulness.toFixed(0)+'/100 · warm strength '+nearest.warmStrength.toFixed(0)+'/100. '+(warm.warmStrength>=1?'Warm-strength maximum: '+stamp(warm.t)+'.':'No appreciable warm-color strength in this interval.');}
   $('skyTimeBadge').textContent=stamp(currentTime)+' · '+result.timezone;
+  $('skyDisplayStatus').textContent=SkyCountdown.displayStatus(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode,realTimeView?Date.now():currentTime,realTimeView,playing);
   syncTerrainVisibility();refreshProjector();graph(a);
  }
  function graph(a){

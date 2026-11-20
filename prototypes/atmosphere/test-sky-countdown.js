@@ -23,4 +23,7 @@ const nav={contact:1000,astro:5000,peak:{t:3000}},windowNav=[2000,4000];
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,1).t,4000);
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,-1).t,2000);
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',5000,1),null);
+assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',3000,false),'Simulation · sunset peak');
+assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',6500,false),'Simulation · Sunset preview');
+assert.strictEqual(C.displayStatus(nav,windowNav,'sunrise',3000,true),'Realtime · Sunrise sky');
 

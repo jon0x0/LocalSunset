@@ -27,6 +27,7 @@
   const pad=n=>String(n).padStart(2,'0'),amount=pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds/60)%60)+':'+pad(seconds%60);
   return {label:seconds===0?'At '+label:amount+' '+(delta<0?'before ':'after ')+label,event};
  }
- const api={next,relative,adjacent};root.SkyCountdown=api;if(typeof module!=='undefined')module.exports=api;
+ function displayStatus(a,window,mode,time,live,playing=false){const type=mode==='sunrise'?'Sunrise':'Sunset';if(live)return 'Realtime · '+type+' sky';const event=milestones(a,window,mode).find(e=>Math.abs(e.t-time)<=500);return (playing?'Simulation playing':'Simulation')+' · '+(event?event.label:type+' preview');}
+ const api={next,relative,adjacent,displayStatus};root.SkyCountdown=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
