@@ -65,10 +65,10 @@ const CandidateAtmosphere=(()=>{
  function refreshEventTable(a,window,mode){
   const events=tableEvents(a,window,mode),now=realTimeView?Date.now():currentTime,chosen=events.find(e=>e.key===countdownSelection&&Number.isFinite(e.t)),timing=chosen?SkyCountdown.countdownTo(chosen,now):SkyCountdown.next(a,window,mode,now),selected=chosen||events.find(e=>e.t===timing.event?.t);
   $('selectedEventCountdown').textContent=(realTimeView?'Realtime countdown: ':'From simulated time: ')+timing.label;
-  $('skyEventZone').textContent=result.timezone+' · select countdown';
+  $('skyEventZone').textContent=result.timezone;
   const key=JSON.stringify([events,countdownSelection,selected?.key,result.timezone]);if(key===eventRowsKey)return;eventRowsKey=key;
   $('skyEventHead').replaceChildren(...events.map(event=>{const head=document.createElement('th');head.scope='col';head.textContent=event.label.replace('Local terrain','Terrain').replace('Viewing window','Window');return head;}));
-  const row=document.createElement('tr');row.append(...events.map(event=>{const cell=document.createElement('td'),label=document.createElement('label'),radio=document.createElement('input'),time=document.createElement('span');radio.type='radio';radio.name='skyCountdownEvent';radio.setAttribute('aria-label',event.label);radio.value=event.key;radio.setAttribute('aria-label',event.label);radio.checked=event.key===selected?.key;radio.disabled=!Number.isFinite(event.t);radio.onchange=()=>{countdownSelection=event.key;eventRowsKey='';refresh();};time.textContent=Number.isFinite(event.t)?stamp(event.t):'—';label.append(radio,time);cell.append(label);cell.classList.toggle('selected',radio.checked);return cell;}));$('skyEventRows').replaceChildren(row);
+  const row=document.createElement('tr');row.append(...events.map(event=>{const cell=document.createElement('td');cell.textContent=Number.isFinite(event.t)?stamp(event.t):'—';return cell;}));$('skyEventRows').replaceChildren(row);
  }
  function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false);}
  function syncSkyMode(){

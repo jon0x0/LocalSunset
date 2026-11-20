@@ -269,3 +269,5 @@ body.projector .scene{height:100vh!important;height:100dvh!important}
  .compact-dock>.transport{grid-column:1/-1}
  .sky-status-strip .sky-event-table th{font-size:11px}.sky-status-strip .sky-event-table td{font-size:12px}
 }
+
+.sky-event-table td{padding:3px 2px;font-size:12px;font-variant-numeric:tabular-nums}.sky-event-table small{margin-top:2px}.sky-status-strip>.sky-event-table{pointer-events:none}
