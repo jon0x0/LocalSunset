@@ -257,3 +257,15 @@ body.projector .scene{height:100vh!important;height:100dvh!important}
 .sky-event-table{font-size:10px;margin:0 0 5px;min-width:0}
 .sky-event-table table{table-layout:fixed}.sky-event-table th{text-align:center;font-size:10px;line-height:1.2;padding:3px 2px;vertical-align:bottom}.sky-event-table td{padding:3px 2px;text-align:center;border:0}.sky-event-table td:last-child{white-space:normal}.sky-event-table label{justify-content:center;gap:3px;min-height:28px;flex-wrap:wrap}.sky-event-table input{width:13px;height:13px}.sky-event-table td.selected{background:#d9ba7d33;border-radius:4px}.sky-event-table small{font-size:9px;margin-top:2px}.sky-event-table #selectedEventCountdown{font-size:11px;margin:0 0 3px;line-height:1.3}
 @media(min-width:1101px),(min-width:761px) and (min-height:541px){.compact-dock{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(330px,1fr);gap:4px 12px;align-items:start}.compact-dock>.transport{grid-column:1;grid-row:1}.compact-dock>.sky-event-table{grid-column:2;grid-row:1}.compact-dock>.quick-controls,.compact-dock>#terrainOptionNote,.compact-dock>.view-tools{grid-column:1/-1}}
+
+/* Desktop predictions occupy the lower-right scenery status area. */
+.sky-status-strip>.sky-event-table{pointer-events:auto}
+@media(min-width:1101px),(min-width:761px) and (min-height:541px){
+ body:not(.projector) .sky-status-strip{grid-template-columns:minmax(180px,.8fr) minmax(150px,.65fr) minmax(320px,1.5fr);align-items:center;gap:5px 14px}
+ body:not(.projector) .sky-status-strip>.sky-time-group{grid-column:1;grid-row:1}
+ body:not(.projector) .sky-status-strip>.sky-next-event{grid-column:2;grid-row:1}
+ body:not(.projector) .sky-status-strip>.sky-event-table{grid-column:3;grid-row:1;margin:0;align-self:center}
+ body:not(.projector) .sky-status-strip>.sky-status-geometry{grid-column:1/-1;grid-row:2}
+ .compact-dock>.transport{grid-column:1/-1}
+ .sky-status-strip .sky-event-table th{font-size:11px}.sky-status-strip .sky-event-table td{font-size:12px}
+}

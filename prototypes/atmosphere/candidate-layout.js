@@ -32,6 +32,7 @@
  const sidebar=document.querySelector('aside'),drawer=document.createElement('details');drawer.id='candidateLocations';drawer.innerHTML='<summary>Location, saved places & terrain <span>⌄</span></summary>';
  sidebar.before(drawer);drawer.append(sidebar);
  const wide=matchMedia('(min-width: 761px) and (min-height: 541px), (min-width: 1101px)');function placeLocationControls(){drawer.open=wide.matches;if(wide.matches)document.body.insertBefore(drawer,main);else (document.querySelector('.sky-resize-bar')||scene).after(drawer);}placeLocationControls();wide.addEventListener('change',placeLocationControls);
+ function placeEventTable(){if(wide.matches)skyStatus.insertBefore(eventTable,geometry);else transport.after(eventTable);}placeEventTable();wide.addEventListener('change',placeEventTable);
  const heading=panel.querySelector('h2');heading.textContent='Color forecast';
  // Explanations stay available without displacing the sky or graph.
  const explanation=document.createElement('details');explanation.className='forecast-explanation';explanation.innerHTML='<summary>Curve legend & model details</summary>';
