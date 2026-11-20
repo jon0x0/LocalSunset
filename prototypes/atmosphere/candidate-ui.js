@@ -149,7 +149,7 @@ const CandidateAtmosphere=(()=>{
  const weatherPreference='localsunset.atmosphere.candidate.weatherEnabled',weatherCache='localsunset.atmosphere.candidate.weatherCache.v3';
  let weatherRequest=null,weatherRequestId=0,weatherPendingKey='',weatherFetchedAt=0;
  const weatherAttempts=new Map(),weatherRetries=new Map();
- try{$('candidateUseWeather').checked=localStorage.getItem(weatherPreference)==='true';const cached=JSON.parse(localStorage.getItem(weatherCache)||'null');if(cached&&cached.data?.hourly?.time?.length&&Number.isFinite(cached.fetchedAt)){weatherData=cached.data;weatherSite=cached.site;weatherFetchedAt=cached.fetchedAt;}}catch(e){}
+ try{$('candidateUseWeather').checked=localStorage.getItem(weatherPreference)!=='false';const cached=JSON.parse(localStorage.getItem(weatherCache)||'null');if(cached&&cached.data?.hourly?.time?.length&&Number.isFinite(cached.fetchedAt)){weatherData=cached.data;weatherSite=cached.site;weatherFetchedAt=cached.fetchedAt;}}catch(e){}
  if($('candidateUseWeather').checked)$('candidateWeatherStatus').textContent=(weatherData?'Cached cloud forecast from '+new Date(weatherFetchedAt).toLocaleString()+' · automatic updates active.':'Local cloud estimate enabled · checking forecast automatically.');
  async function ensureWeather(){
   const checkbox=$('candidateUseWeather');if(!checkbox.checked||!result||!renderedKey||calculationPending||resultDirty||document.hidden)return;
