@@ -4,7 +4,7 @@
   const type=mode==='sunrise'?'sunrise':'sunset',events=[
    {t:a.contact,label:'Local terrain '+type},
    {t:window?window[0]:null,label:'Viewing window starts'},
-   {t:a.peak?a.peak.t:null,label:type+' peak'},
+   {t:a.peak?a.peak.t:null,label:type[0].toUpperCase()+type.slice(1)+' peak'},
    {t:window?window[1]:null,label:'Viewing window ends'},
    {t:a.astro,label:'Astronomical '+type}
   ].filter(e=>Number.isFinite(e.t)).sort((a,b)=>a.t-b.t);

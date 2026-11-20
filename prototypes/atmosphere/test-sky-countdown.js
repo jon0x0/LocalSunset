@@ -1,6 +1,6 @@
 const assert=require('assert'),C=require('./sky-countdown.js');
 const a={contact:10000,astro:50000,peak:{t:30000}},window=[20000,40000];
-for(const [now,label] of [[0,'Local terrain sunset'],[10000,'Viewing window starts'],[20000,'sunset peak'],[30000,'Viewing window ends'],[40000,'Astronomical sunset']])assert(C.next(a,window,'sunset',now).label.startsWith(label+' in '));
+for(const [now,label] of [[0,'Local terrain sunset'],[10000,'Viewing window starts'],[20000,'Sunset peak'],[30000,'Viewing window ends'],[40000,'Astronomical sunset']])assert(C.next(a,window,'sunset',now).label.startsWith(label+' in '));
 assert.strictEqual(C.next(a,window,'sunset',50000).event,null);
 assert(C.next({...a,contact:25000},[10000,40000],'sunrise',0).label.startsWith('Viewing window starts'));
 assert(C.next(a,null,'sunrise',0).label.startsWith('Local terrain sunrise'));
@@ -23,7 +23,7 @@ const nav={contact:1000,astro:5000,peak:{t:3000}},windowNav=[2000,4000];
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,1).t,4000);
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',3000,-1).t,2000);
 assert.strictEqual(C.adjacent(nav,windowNav,'sunset',5000,1),null);
-assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',3000,false),'Simulation · sunset peak');
+assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',3000,false),'Simulation · Sunset peak');
 assert.strictEqual(C.displayStatus(nav,windowNav,'sunset',6500,false),'Simulation · Sunset preview');
 assert.strictEqual(C.displayStatus(nav,windowNav,'sunrise',3000,true),'Realtime · Sunrise sky');
 assert.strictEqual(C.countdownTo({t:90000,label:'Sunset peak'},30000).label,'Sunset peak in 00:01:00');
