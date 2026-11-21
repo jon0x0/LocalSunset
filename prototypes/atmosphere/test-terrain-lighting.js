@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),G=require('./terrain-light-geometry.js');
+const mesh={size:7,span:6000,heights:Array(49).fill(2000)};
+assert.deepEqual(G.normal(mesh,3,3),[-0,-0,1]);
+assert.ok(Math.abs(G.direct(mesh,3,3,30,90)-.5)<1e-6);
+assert.equal(G.direct(mesh,3,3,-10,90),0);
+mesh.heights[3*7+5]=4000;
+assert.ok(G.direct(mesh,3,3,5,90,false)>0,'unobstructed direct lighting on flat source');
+assert.equal(G.direct(mesh,3,3,5,90,true),0,'separate eastern ridge casts shadow');
+assert.ok(G.direct(mesh,3,3,5,270,true)>0,'western sun not blocked by eastern ridge');
+const point=G.vertex(mesh,3,6,2003,0,10,300,800);assert.ok(Math.abs(point.x-400)<1e-6);
+console.log('Terrain normals, cosine incidence, Earth shadow, cast-shadow toggle and projection passed');

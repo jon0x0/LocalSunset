@@ -21,5 +21,13 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
  tiles.tile=async key=>{if(!tiles.tiles.has(key)){const [x,y]=key.split(',').map(Number),data=new Float32Array(65536);for(let j=0;j<256;j++)for(let i=0;i<256;i++)data[j*256+i]=x*256+i+y*512+j*2;tiles.tiles.set(key,data);}return tiles.tiles.get(key);};
  const values=await tiles.sampleMany([[256,256],[100,512]]);
  assert.equal(values[0],766.5);assert.equal(values[1],454.5);
+ // Lighting meshes are independent of sunrise/sunset results and reuse their cache.
+ context.meshSamples=0;context.BrowserTerrain.destination=(lat,lon,az,d)=>[lat+d*Math.cos(az*Math.PI/180)/111200,lon+d*Math.sin(az*Math.PI/180)/111200];
+ vm.runInContext('Tiles.prototype.sampleMany=async function(points){meshSamples++;this.used.add("test elevation");return Float64Array.from(points,(_,i)=>1000+i%65);}',context);
+ const lightingInput={lat:0,lon:0,zoom:10,source:'global'};
+ await context.self.onmessage({data:{id:'mesh1',kind:'mesh',input:lightingInput}});
+ assert.equal(messages.at(-1).status,'mesh');assert.equal(messages.at(-1).mesh.heights.length,65*65);assert.equal(context.meshSamples,1);
+ await context.self.onmessage({data:{id:'mesh2',kind:'mesh',input:lightingInput}});assert.equal(context.meshSamples,1,'mesh cache prevents another terrain download');
+ await context.self.onmessage({data:{id:'mesh3',kind:'mesh',input:{...lightingInput,lat:85}}});assert.equal(messages.at(-1).status,'error');
  console.log('Browser worker cached results, cross-date horizon reuse and tile seam sampling passed.');
 })().catch(error=>{console.error(error);throw error;});

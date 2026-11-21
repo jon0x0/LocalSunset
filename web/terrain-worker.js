@@ -38,6 +38,17 @@ class Polar{
 self.onmessage=async event=>{
  const {id,input}=event.data,progress=message=>self.postMessage({id,status:'running',message});
  try{
+  if(event.data.kind==='mesh'){
+   const {lat,lon}=input;if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>80||Math.abs(lon)>180)throw Error('Lighting mesh supports latitudes within ±80°.');
+   const zoom=Math.max(9,Math.min(12,input.zoom||10)),source=input.source||'auto',key='lighting-mesh:v1:'+JSON.stringify([lat,lon,zoom,source]);let mesh=await WebCache.get(key);
+   if(!mesh){
+    progress('Loading terrain surfaces for lighting…');const provider=new Tiles(lat,lon,zoom,source),size=65,span=40000,points=[];
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++){const east=(x/(size-1)-.5)*span,north=(y/(size-1)-.5)*span;points.push(BrowserTerrain.destination(lat,lon,Math.atan2(east,north)*180/Math.PI,Math.hypot(east,north)));}
+    const values=await provider.sampleMany(points);if(values.some(v=>!Number.isFinite(v)||v< -12000||v>10000))throw Error('Lighting mesh contains missing elevations');
+    mesh={size,span,heights:Array.from(values),lat,lon,source:[...provider.used].join(', ')};await WebCache.put(key,mesh,values.length*4);
+   }
+   self.postMessage({id,status:'mesh',mesh});return;
+  }
   const {lat,lon,height,radius,zoom,source,date}=input;const ground=input.ground??null;if(ground!=null&&(!Number.isFinite(ground)||ground< -12000||ground>10000))throw Error('Invalid ground elevation override.');const near=ground!=null?(input.near??100):0;if(ground!=null&&(!Number.isFinite(near)||near<50||near>1000))throw Error('DEM exclusion distance must be between 50 and 1000 meters.');for(const [value,min,max] of [[lat,-90,90],[lon,-180,180],[height,0,10000],[radius,5,200],[zoom,9,13]])if(!Number.isFinite(value)||value<min||value>max)throw Error('Invalid location or terrain settings.');
   const identity=JSON.stringify([1,lat,lon,height,radius,zoom,source,...(ground!=null?[ground,near]:[])]),resultKey='result:'+identity+':'+date;let result=await WebCache.get(resultKey);
   if(!result){progress('Loading cached terrain or downloading elevation tiles...');let terrain=await WebCache.get('horizon:'+identity);
