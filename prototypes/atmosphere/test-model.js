@@ -36,3 +36,12 @@ assert.strictEqual(wind.windSpeed,15);assert.strictEqual(wind.windDirection,0,'d
 windData.hourly.wind_direction_10m=[10,350];assert.strictEqual(M.weatherAt(windData,Date.parse('2026-11-20T00:30Z')).windDirection,0);
 windData.hourly.wind_direction_10m=[null,10];assert.strictEqual(M.weatherAt(windData,Date.parse('2026-11-20T00:30Z')).windDirection,null);
 console.log('Wind speed and circular direction interpolation passed.');
+
+const precipitation={hourly:{time:data.hourly.time,precipitation:[0,2],precipitation_probability:[0,85],rain:[0,0],showers:[0,0],snowfall:[0,1.4]}};
+const selected=M.weatherAt(precipitation,Date.parse('2026-11-20T00:30Z'));
+assert.equal(selected.precipitation,2,'hourly accumulation is not interpolated into a fictitious instantaneous value');
+assert.equal(selected.precipitationProbability,85);assert.equal(selected.snowfall,1.4);
+assert.equal(selected.precipitationStart,Date.parse('2026-11-20T00:00Z'));assert.equal(selected.precipitationEnd,Date.parse('2026-11-20T01:00Z'));
+assert.equal(M.weatherAt(precipitation,Date.parse('2026-11-20T01:00Z')).precipitation,2,'exact hour retains preceding-hour accumulation');
+assert.equal(M.weatherAt({hourly:{time:data.hourly.time}},Date.parse('2026-11-20T00:30Z')).precipitation,null,'missing precipitation is unknown');
+console.log('Precipitation, snow depth, probability, hourly interval selection and missing-data handling passed.');

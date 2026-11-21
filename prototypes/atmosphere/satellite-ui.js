@@ -106,5 +106,8 @@ const SatelliteClouds=(()=>{
   const lighting=options?.spectral?SpectralSky.cloudLight(sunAlt,c.top,aod,options):null;
   return rgb.map((v,i)=>v*(1-mask)+mask*(lighting?lighting[i]:(.004+lit*[.2,.15,.1][i]*(1+warm*[.8,-.1,-.6][i]))));
  }
- return {shade,update,get updating(){return isUpdating();},get revision(){return revision;}};
+ function imageInfo(t,lat,lon){
+  const active=state(t,lat,lon);return {state:active,loading:isUpdating(),stage:loadingStage,source:data?.source||'No satellite observation',observedAt:data?.observedAt||null,topObservedAt:data?.heightObservedAt||null,products:data?.products||[],offsetMinutes:data?(t-Date.parse(data.observedAt))/60000:null,profileTime:profile?.time||null,baseEstimation:panel.querySelector('#profileBases').checked,profileStatus:panel.querySelector('#profileStatus').textContent,windProjection:panel.querySelector('#windProjection').checked,assumedThicknessKm:Number(thickness.value),message:status.textContent};
+ }
+ return {shade,update,imageInfo,get updating(){return isUpdating();},get revision(){return revision;}};
 })();

@@ -21,3 +21,6 @@ assert.equal(S.needs({...later,pending:'earlier request'}),false);
 assert.equal(S.needs({...later,pending:'',loaded:S.sourceKey(40,-105,loaded.target,loaded.now)}),true);
 assert.equal(S.needs({...later,pending:'',loaded:S.sourceKey(40,-105,later.target,later.now),observed:later.target-300000}),false);
 console.log('Outdated scrub response catches up before the latest source is considered ready');
+
+assert.equal(S.needs({...loaded,target:loaded.target+300000,realtime:false}),false,'historical view reuses an observation within ten minutes');
+assert.equal(S.needs({...loaded,target:loaded.observed-1,realtime:false}),true,'rewinding before an observation acquires earlier imagery');

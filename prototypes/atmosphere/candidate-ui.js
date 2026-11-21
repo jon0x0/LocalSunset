@@ -32,9 +32,9 @@ const CandidateAtmosphere=(()=>{
  function geometry(t){const p=site(),o=new Astronomy.Observer(p.lat,p.lon,result.terrain.observer_m),e=Astronomy.Equator('Sun',new Date(t),o,true,true),h=Astronomy.Horizon(new Date(t),o,e.ra,e.dec);return {alt:h.altitude,az:h.azimuth};}
  let weatherMemo=null,weatherMemoKey='';
  function weather(t){const p=site(),key=[t,weatherSite,weatherFetchedAt,$('candidateUseWeather').checked,p.lat,p.lon].join('|');if(key!==weatherMemoKey){weatherMemoKey=key;weatherMemo=$('candidateUseWeather').checked&&weatherSite===p.lat+','+p.lon?GlowModel.weatherAt(weatherData,t):null;}return weatherMemo;}
- function clouds(rgb,alt,az,t,sunAlt,observed=false,enhanced=true){
-  if(observed&&typeof SatelliteClouds!=='undefined'){const p=site(),r=SatelliteClouds.shade(rgb,alt,az,t,sunAlt,p.lat,p.lon,result.terrain.observer_m,aod(),optics());if(r)return r;}
-  const w=weather(t);if(!w)return rgb;
+ function clouds(rgb,alt,az,t,sunAlt,observed=false,enhanced=true,usage=null){
+  if(observed&&typeof SatelliteClouds!=='undefined'){const p=site(),r=SatelliteClouds.shade(rgb,alt,az,t,sunAlt,p.lat,p.lon,result.terrain.observer_m,aod(),optics());if(r){if(usage)usage.satellite++;return r;}}
+  const w=weather(t);if(!w){if(usage)usage.clear++;return rgb;}if(usage)usage.forecast++;
   let out=rgb.slice();
   for(const [amount,height,opacity] of [[w.high,10,.4],[w.mid,5,.6],[w.low,2,.85]]){
    if(amount===null)continue;
@@ -86,14 +86,23 @@ const CandidateAtmosphere=(()=>{
   button.setAttribute('aria-pressed',String(realTimeView));button.classList.toggle('is-live',realTimeView);
   button.title=realTimeView?'Sky follows the real clock. Click to pause.':'Sky shows a selected preview time. Click to follow the real clock.';
  }
+ function precipitationText(w){
+  if(!w||![w.precipitation,w.precipitationProbability,w.rain,w.showers,w.snowfall].some(Number.isFinite))return 'Precipitation unavailable';
+  const fields=[];if(Number.isFinite(w.precipitationProbability))fields.push(Math.round(w.precipitationProbability)+'% chance');
+  if(Number.isFinite(w.precipitation))fields.push((w.precipitation/25.4).toFixed(2)+' in ('+w.precipitation.toFixed(1)+' mm) water');
+  if(w.rain>0)fields.push('rain '+w.rain.toFixed(1)+' mm');if(w.showers>0)fields.push('showers '+w.showers.toFixed(1)+' mm');
+  if(w.snowfall>0)fields.push('snow '+(w.snowfall/2.54).toFixed(2)+' in ('+w.snowfall.toFixed(1)+' cm)');
+  return 'Precip '+formatClock(w.precipitationStart,result.timezone,false)+'–'+formatClock(w.precipitationEnd,result.timezone,false)+': '+fields.join(' · ');
+ }
  function refreshCloudEstimate(){
   const enabled=$('candidateUseWeather').checked,w=enabled&&result?weather(realTimeView?Date.now():currentTime):null,pct=v=>Number.isFinite(v)?Math.round(Math.max(0,Math.min(100,v)))+'%':'unavailable';
   const temperature=w&&Number.isFinite(w.temperature)?'Forecast temperature: '+Math.round(w.temperature*9/5+32)+'°F ('+Math.round(w.temperature)+'°C) · ': 'Forecast temperature unavailable · ';
   const direction=w&&Number.isFinite(w.windDirection)?['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(w.windDirection/22.5)%16]+' ('+Math.round(w.windDirection)%360+'°)':'direction unavailable';
   const wind=w&&Number.isFinite(w.windSpeed)?'Wind: '+(w.windSpeed<.5?'calm':Math.round(w.windSpeed)+' mph ('+Math.round(w.windSpeed*1.609344)+' km/h) from '+direction)+' · ':'Wind unavailable · ';
-  const text=temperature+wind+(w?'Forecast cloud cover: '+pct(w.total)+' total · low '+pct(w.low)+' · middle '+pct(w.mid)+' · high '+pct(w.high):'Forecast cloud cover unavailable for this location/time.');
+  const precip=precipitationText(w);
+  const text=temperature+wind+precip+' · '+(w?'Forecast cloud cover: '+pct(w.total)+' total · low '+pct(w.low)+' · middle '+pct(w.mid)+' · high '+pct(w.high):'Forecast cloud cover unavailable for this location/time.');
   for(const id of ['skyCloudEstimate','dockCloudEstimate','projectorCloudEstimate']){$(id).hidden=!enabled;$(id).textContent=enabled?text:'';}
-  $('forecastCloudDetail').textContent=enabled?text+' Layer percentages overlap and should not be added. Temperature is forecast air temperature at 2 m; wind is at 10 m above ground, with direction indicating where it comes from. Hourly forecast values are interpolated to the selected time.':'Enable the local cloud estimate to download and show forecast percentages.';
+  $('forecastCloudDetail').textContent=enabled?text+' Layer percentages overlap and should not be added. Temperature is forecast air temperature at 2 m; wind is at 10 m above ground, with direction indicating where it comes from. Temperature, wind and cloud cover are interpolated to the selected time. Precipitation is the forecast total/probability for the displayed one-hour interval containing that time, not an instantaneous rate; snow is new snowfall depth, total precipitation is liquid-water equivalent. Missing values are unavailable, not zero.':'Enable the local cloud estimate to download and show forecast percentages.';
  }
  function refreshProjector(){refreshCloudEstimate();
   if(!result||!document.body.classList.contains('projector'))return;
@@ -155,13 +164,14 @@ const CandidateAtmosphere=(()=>{
      const p=skyPending;skyPending=null;
      if(p&&message.key===skyWanted?.key){
       skyImage=document.createElement('canvas');skyImage.width=p.width;skyImage.height=p.height;
+      const usage={satellite:0,forecast:0,clear:0};const frameSatellite=typeof SatelliteClouds!=='undefined'?SatelliteClouds.imageInfo(p.time,site().lat,site().lon):null;
       const g=skyImage.getContext('2d'),image=g.createImageData(p.width,p.height);
       for(let y=0;y<p.height;y++)for(let x=0;x<p.width;x++){
        const az=p.focus+(x/p.width-.5)*p.fov,alt=Math.min(90,Math.max(.15,(p.base-y/p.height*p.h)/p.scale)),i=(y*p.width+x)*3;
-       const baseRGB=Array.from(message.pixels.subarray(i,i+3)),rgb=p.backgroundOnly?baseRGB:clouds(baseRGB,alt,az,p.time,p.sunAlt,true);
+       const baseRGB=Array.from(message.pixels.subarray(i,i+3)),rgb=p.backgroundOnly?baseRGB:clouds(baseRGB,alt,az,p.time,p.sunAlt,true,true,usage);
        image.data.set([...GlowModel.display(rgb),255],(y*p.width+x)*4);
       }
-      let total=0;for(let k=0;k<image.data.length;k+=4)total+=(image.data[k]+image.data[k+1]+image.data[k+2])/3;lastFrameHealth={frameTime:p.time,sunAltitude:p.sunAlt,meanPixel:total/(p.width*p.height),backgroundOnly:!!p.backgroundOnly,renderedAt:Date.now()};
+      let total=0;for(let k=0;k<image.data.length;k+=4)total+=(image.data[k]+image.data[k+1]+image.data[k+2])/3;lastFrameHealth={frameTime:p.time,sunAltitude:p.sunAlt,meanPixel:total/(p.width*p.height),backgroundOnly:!!p.backgroundOnly,renderedAt:Date.now(),usage,satellite:frameSatellite,optics:p.options,aod:p.aod,observer:p.observer,weatherFetchedAt,weather:weather(p.time)};
       g.putImageData(image,0,0);skyPresented={site:p.site,time:p.time,sunAlt:p.sunAlt};skyCompleted=message.key;draw();
      }
      pumpSky();
@@ -198,7 +208,7 @@ const CandidateAtmosphere=(()=>{
  function finish(e){if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();gesture=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);requestRefresh();}
  $('candidateGesture').onchange=()=>{gesture=null;document.querySelectorAll('[data-gesture]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gesture===$('candidateGesture').value)));canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';};$('candidateGesture').onchange();
  for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,finish,{capture:true});
- const weatherPreference='localsunset.atmosphere.candidate.weatherEnabled',weatherCache='localsunset.atmosphere.candidate.weatherCache.v3';
+ const weatherPreference='localsunset.atmosphere.candidate.weatherEnabled',weatherCache='localsunset.atmosphere.candidate.weatherCache.v4';
  let weatherRequest=null,weatherRequestId=0,weatherPendingKey='',weatherFetchedAt=0;
  const weatherAttempts=new Map(),weatherRetries=new Map();
  try{$('candidateUseWeather').checked=localStorage.getItem(weatherPreference)!=='false';const cached=JSON.parse(localStorage.getItem(weatherCache)||'null');if(cached&&cached.data?.hourly?.time?.length&&Number.isFinite(cached.fetchedAt)){weatherData=cached.data;weatherSite=cached.site;weatherFetchedAt=cached.fetchedAt;}}catch(e){}
@@ -211,7 +221,7 @@ const CandidateAtmosphere=(()=>{
   const id=++weatherRequestId,controller=new AbortController();weatherRequest=controller;weatherPendingKey=key;weatherAttempts.set(key,now);const timer=setTimeout(()=>controller.abort(),40000);checkbox.setAttribute('aria-busy','true');
   $('candidateWeatherStatus').textContent='Updating local cloud forecast automatically…';
   try{
-   const u=new URL('https://api.open-meteo.com/v1/forecast');Object.entries({latitude:p.lat,longitude:p.lon,hourly:'wind_speed_10m,wind_direction_10m,temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high',wind_speed_unit:'mph',temperature_unit:'celsius',timezone:'GMT',forecast_days:7}).forEach(([k,v])=>u.searchParams.set(k,v));
+   const u=new URL('https://api.open-meteo.com/v1/forecast');Object.entries({latitude:p.lat,longitude:p.lon,precipitation_unit:'mm',hourly:'precipitation,precipitation_probability,rain,showers,snowfall,wind_speed_10m,wind_direction_10m,temperature_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high',wind_speed_unit:'mph',temperature_unit:'celsius',timezone:'GMT',forecast_days:7}).forEach(([k,v])=>u.searchParams.set(k,v));
    const r=await fetch(u.href,{signal:controller.signal});if(!r.ok)throw Error('Weather provider returned '+r.status);const data=await r.json();if(!data.hourly?.time?.length)throw Error('No hourly forecast available.');
    if(id!==weatherRequestId||!checkbox.checked)return;
    const current=site();if(current.lat+','+current.lon!==target)return;
@@ -230,7 +240,7 @@ const CandidateAtmosphere=(()=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureWeather();});
  // Keep the graph cursor synced to playback, wheel, clocks and saved views.
  setInterval(requestRefresh,1000);
- return {diagnostics:()=>({...lastFrameHealth,selectedTime:currentTime,realtime:realTimeView,loading:typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating}),renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
+ return {precipitationText,imageInfo:()=>({frame:lastFrameHealth,selectedTime:realTimeView?Date.now():currentTime,realtime:realTimeView,atmosphere:$('atmosphereEnabled').checked,rendering:!!skyPending,workerFailed:skyWorkerFailed}),diagnostics:()=>({...lastFrameHealth,selectedTime:currentTime,realtime:realTimeView,loading:typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating}),renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
 })();
 
 async function initializeCandidate(){
