@@ -24,3 +24,13 @@ console.log('Outdated scrub response catches up before the latest source is cons
 
 assert.equal(S.needs({...loaded,target:loaded.target+300000,realtime:false}),false,'historical view reuses an observation within ten minutes');
 assert.equal(S.needs({...loaded,target:loaded.observed-1,realtime:false}),true,'rewinding before an observation acquires earlier imagery');
+
+// The acquisition heartbeat works without drawing a new sky frame.
+const fs=require('node:fs'),vm=require('node:vm'),source=fs.readFileSync(__dirname+'/satellite-ui.js','utf8');
+let ticks=0,interval,visibility,online;
+const context={enabled:{checked:true},document:{hidden:false,addEventListener(type,fn){assert.equal(type,'visibilitychange');visibility=fn;}},window:{addEventListener(type,fn){assert.equal(type,'online');online=fn;}},setInterval(fn,ms){assert.equal(ms,15000);interval=fn;},eventContext:()=>({time:123,lat:40,lon:-105}),update(t,lat,lon){assert.equal(t,123);ticks++;},failedEvent:'failed',retryAt:999};
+vm.createContext(context);vm.runInContext(source.slice(source.indexOf(' function maintainClouds'),source.indexOf(' function shade')),context);
+interval();assert.equal(ticks,1);context.document.hidden=true;interval();assert.equal(ticks,1);
+context.document.hidden=false;visibility();assert.equal(ticks,2);online();assert.equal(ticks,3);assert.equal(context.retryAt,0);assert.equal(context.failedEvent,'');
+context.enabled.checked=false;interval();assert.equal(ticks,3);
+console.log('Independent acquisition heartbeat, tab resume, reconnect retry and opt-out passed');

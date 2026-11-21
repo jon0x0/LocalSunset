@@ -1,6 +1,6 @@
 /* Opt-in snapshot experiment. All raw satellite preprocessing stays off the phone. */
 const SatelliteClouds=(()=>{
- let data=null,revision=0,profile=null,profileRequest=0,satelliteRequest=0,loadedEvent='',pendingEvent='',failedEvent='',autoTimer=null,scheduledKey='',retryAt=0,activeController=null,profilePending=false,profileRetryAt=0,bundlePending=false,loadingStage='';
+ let data=null,revision=0,profile=null,profileRequest=0,satelliteRequest=0,loadedEvent='',pendingEvent='',failedEvent='',autoTimer=null,scheduledKey='',retryAt=0,activeController=null,profilePending=false,profileRetryAt=0,bundlePending=false,loadingStage='',lastError='';
  const panel=document.createElement('details');panel.className='satellite-experiment';panel.innerHTML='<summary>Experimental satellite clouds</summary><label class="check-label"><input id="satelliteEnabled" type="checkbox"> Auto-download satellite clouds</label><button id="satelliteLoad" type="button">Refresh imagery now</button> <label>Import snapshot <input id="satelliteFile" type="file" accept=".json,application/json"></label><label class="check-label"><input id="windProjection" type="checkbox" checked> Wind projection (off = still satellite image)</label><label>Assumed cloud thickness · km <input id="satelliteThickness" type="number" min="0.2" max="6" step="0.2" value="1"></label><label class="check-label"><input id="profileBases" type="checkbox" checked> Estimate bases from water/ice humidity profile</label><button id="profileLoad" type="button">Load cloud-base profile</button><p id="profileStatus" class="hint">Optional Open-Meteo profile: coordinates rounded to 0.01° are sent only when requested. Estimates apply within 50 km and ±90 min. Manual thickness is the fallback.</p><p id="satelliteStatus" role="status">Off. Enabling follows realtime and time scrolling automatically. Regional NOAA products are downloaded by the local server; coordinates are rounded to 0.01°.</p><p class="hint">Observed mask + retrieved tops; optional optical depth. Bases/thickness and lighting are approximations. One-column wind projection only; no measured cloud motion, growth/decay or hidden layers. Humidity-derived bases are uncertain, not observations. Wind projection is limited to 90 minutes. Clouds without wind coverage stay at their observed positions. With wind off, compare the still observation within 60 minutes. Outside these time limits the usual sky is used. Color graph retains the forecast model.</p>';
  document.querySelector('.atmosphere-panel').append(panel);
  const enabled=panel.querySelector('#satelliteEnabled'),status=panel.querySelector('#satelliteStatus'),thickness=panel.querySelector('#satelliteThickness');
@@ -20,7 +20,7 @@ const SatelliteClouds=(()=>{
   const event=eventContext();if(!event){status.textContent='Calculate an event first.';return;}
   if(pendingEvent)return;clearTimeout(autoTimer);scheduledKey='';
   if(activeController)activeController.abort();
-  loadingStage='Loading clouds and cloud-top heights…';const id=++satelliteRequest;pendingEvent=event.key;failedEvent='';
+  loadingStage='Loading clouds and cloud-top heights…';const id=++satelliteRequest;pendingEvent=event.key;failedEvent='';lastError='';
   status.textContent='Retrieving '+event.mode+' imagery for '+stamp(event.time)+'…';
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),180000);activeController=controller;
   try{
@@ -41,7 +41,7 @@ const SatelliteClouds=(()=>{
    bundlePending=true;loadedEvent=event.key;profile=null;profileRequest++;profilePending=false;profileRetryAt=0;apply(d);panel.querySelector('#profileStatus').textContent='Profile cleared. Load a profile aligned to this observation.';
    if(event.time>Date.now())status.textContent+=' Future view uses latest observation and wind-only projection, limited to 90 min.';
    if((panel.querySelector('#profileBases').checked||panel.querySelector('#windProjection').checked)&&Math.abs(event.time-Date.parse(data.observedAt))<=5400000)await panel.querySelector('#profileLoad').onclick();
-  }catch(e){if(id===satelliteRequest){failedEvent=event.key;retryAt=Date.now()+300000;status.textContent=e.message+' Existing imagery is not applied to a different event.';}}
+  }catch(e){if(id===satelliteRequest){failedEvent=event.key;retryAt=Date.now()+60000;lastError='Cloud refresh failed: '+e.message+'. Retrying automatically.';status.textContent=lastError;}}
   finally{clearTimeout(timer);if(id===satelliteRequest){pendingEvent='';bundlePending=false;loadingStage='';changed();}}
  }
  function state(t,lat,lon){
@@ -68,9 +68,9 @@ const SatelliteClouds=(()=>{
   }
 
   loadingBadge.hidden=!isUpdating();loadingBadge.textContent=loadingStage||(profilePending?'Loading humidity profile and winds…':'Preparing cloud view…');
-  const s=state(t,lat,lon);for(const el of overlays){el.hidden=!enabled.checked;el.textContent=enabled.checked?'Satellite: '+(isUpdating()?(loadingStage||'Loading cloud data…'):s)+(pendingEvent?' · downloading matching imagery':'')+(data?' · observed '+stamp(data.observedAt)+' · offset '+Math.round((t-Date.parse(data.observedAt))/60000)+' min':''):'';}return s;
+  const s=state(t,lat,lon);for(const el of overlays){el.hidden=!enabled.checked;el.textContent=enabled.checked?'Satellite: '+(isUpdating()?(loadingStage||'Loading cloud data…'):s)+(pendingEvent?' · downloading matching imagery':'')+(data?' · observed '+stamp(data.observedAt)+' · offset '+Math.round((t-Date.parse(data.observedAt))/60000)+' min'+(realTimeView&&Date.now()-Date.parse(data.observedAt)>900000?' · older observation':''):'')+(lastError?' · '+lastError:''):'';}return s;
  }
- function changed(){revision++;if(typeof CandidateAtmosphere!=='undefined'){CandidateAtmosphere.invalidate();draw();CandidateAtmosphere.refresh();}status.textContent=(enabled.checked?'Enabled. ':'Off. ')+describe();}
+ function changed(){revision++;if(typeof CandidateAtmosphere!=='undefined'){CandidateAtmosphere.invalidate();draw();CandidateAtmosphere.refresh();}status.textContent=(enabled.checked?'Enabled. ':'Off. ')+describe()+(lastError?' '+lastError:'');}
  function apply(d){data=SatelliteCloudGeometry.validate(d);enabled.checked=true;document.getElementById('atmosphereEnabled').checked=true;changed();}
  panel.querySelector('#profileBases').onchange=changed;panel.querySelector('#windProjection').onchange=()=>{changed();if(data&&!profile)panel.querySelector('#profileLoad').onclick();};
  panel.querySelector('#profileLoad').onclick=async()=>{
@@ -98,6 +98,14 @@ const SatelliteClouds=(()=>{
  enabled.onchange=()=>{try{localStorage.setItem(satellitePreference,String(enabled.checked));}catch(e){}if(!enabled.checked){satelliteRequest++;profileRequest++;profilePending=false;bundlePending=false;pendingEvent='';clearTimeout(autoTimer);scheduledKey='';activeController?.abort();}else document.getElementById('atmosphereEnabled').checked=true;changed();};thickness.onchange=()=>{thickness.value=Math.max(.2,Math.min(6,Number(thickness.value)||1));changed();};
  panel.querySelector('#satelliteLoad').onclick=()=>{enabled.checked=true;try{localStorage.setItem(satellitePreference,'true');}catch(e){}loadEvent();};
  panel.querySelector('#satelliteFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>2000000)throw Error('Snapshot exceeds 2 MB.');const imported=SatelliteCloudGeometry.validate(JSON.parse(await file.text())),event=eventContext();if(!SatelliteCloudGeometry.matchesEvent(imported,event,panel.querySelector('#windProjection').checked?5400000:3600000))throw Error('Imported snapshot does not match the selected event time/location.');satelliteRequest++;pendingEvent='';bundlePending=true;loadedEvent=event.key;profile=null;profileRequest++;profilePending=false;apply(imported);if(panel.querySelector('#profileBases').checked||panel.querySelector('#windProjection').checked)await panel.querySelector('#profileLoad').onclick();}catch(e){status.textContent=e.message;}finally{bundlePending=false;changed();}};
+ // Acquisition must continue even when the renderer reuses a cached frame.
+ function maintainClouds(){
+  if(!enabled.checked||document.hidden)return;
+  const e=eventContext();if(e)update(e.time,e.lat,e.lon);
+ }
+ setInterval(maintainClouds,15000);
+ document.addEventListener('visibilitychange',maintainClouds);
+ window.addEventListener('online',()=>{failedEvent='';retryAt=0;maintainClouds();});
  function shade(rgb,alt,az,t,sunAlt,lat,lon,observer,aod=.12,options=null){
   if(!state(t,lat,lon).startsWith('active'))return null;
   const c=SatelliteCloudGeometry.lookup(data,lat,lon,observer,alt,az,Number(thickness.value),panel.querySelector('#profileBases').checked?(top,clat,clon)=>CloudBase.estimate(profile,top,clat,clon,Date.parse(data.observedAt)):null,panel.querySelector('#windProjection').checked?(height,clat,clon)=>(CloudMotion.backtrace(profile,height,clat,clon,Date.parse(data.observedAt),t)||[clat,clon]):null);if(!c)return null;if(!c.cover)return rgb;
@@ -107,7 +115,7 @@ const SatelliteClouds=(()=>{
   return rgb.map((v,i)=>v*(1-mask)+mask*(lighting?lighting[i]:(.004+lit*[.2,.15,.1][i]*(1+warm*[.8,-.1,-.6][i]))));
  }
  function imageInfo(t,lat,lon){
-  const active=state(t,lat,lon);return {state:active,loading:isUpdating(),stage:loadingStage,source:data?.source||'No satellite observation',observedAt:data?.observedAt||null,topObservedAt:data?.heightObservedAt||null,products:data?.products||[],offsetMinutes:data?(t-Date.parse(data.observedAt))/60000:null,profileTime:profile?.time||null,baseEstimation:panel.querySelector('#profileBases').checked,profileStatus:panel.querySelector('#profileStatus').textContent,windProjection:panel.querySelector('#windProjection').checked,assumedThicknessKm:Number(thickness.value),message:status.textContent};
+  const active=state(t,lat,lon);return {state:active,loading:isUpdating(),stage:loadingStage,source:data?.source||'No satellite observation',observedAt:data?.observedAt||null,topObservedAt:data?.heightObservedAt||null,products:data?.products||[],offsetMinutes:data?(t-Date.parse(data.observedAt))/60000:null,profileTime:profile?.time||null,baseEstimation:panel.querySelector('#profileBases').checked,profileStatus:panel.querySelector('#profileStatus').textContent,windProjection:panel.querySelector('#windProjection').checked,assumedThicknessKm:Number(thickness.value),message:status.textContent,lastError};
  }
  function sunTransmission(t,lat,lon,height,alt,az){
   if(!state(t,lat,lon).startsWith('active'))return null;
