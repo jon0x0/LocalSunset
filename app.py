@@ -87,6 +87,18 @@ def display_orientation():
             for key in ('playing','live'):
                 if not isinstance(data.get(key),bool):raise ValueError(f'Invalid {key}')
                 view[key]=data[key]
+            if 'sky' in data:
+                options=data['sky']
+                if not isinstance(options,dict):raise ValueError('Invalid sky settings')
+                checks=('atmosphereEnabled','spectralEnabled','candidateUseWeather','satelliteEnabled','windProjection','profileBases','terrainLightingEnabled','terrainCastShadows','terrainCloudSun')
+                numbers={'candidateAod':(0,3),'ozoneDU':(0,600),'satelliteThickness':(.2,6),'peakPadding':(1,45)}
+                view['sky']={}
+                for key,value in options.items():
+                    if key in checks:
+                        if not isinstance(value,bool):raise ValueError('Invalid sky toggle')
+                        view['sky'][key]=value
+                    elif key in numbers:view['sky'][key]=number(options,key,*numbers[key])
+                    else:raise ValueError('Unknown sky setting')
         except (ValueError,KeyError,TypeError) as exc:return jsonify(error=str(exc)),400
         with lock:
             current=json.loads(display_config_path.read_text()) if display_config_path.exists() else {'revision':0}

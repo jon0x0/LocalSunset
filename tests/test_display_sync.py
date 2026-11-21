@@ -31,6 +31,14 @@ class DisplaySyncTests(unittest.TestCase):
         self.assertGreater(current['updated_ms'],0)
         self.assertEqual(before,self.file.read_bytes())
 
+    def test_sky_controls_mirror_with_view_and_reject_invalid_options(self):
+        data=dict(config_revision=1,time_ms=1000,azimuth=50,event='sunset',playing=False,live=False,
+                  sky={'spectralEnabled':False,'satelliteEnabled':True,'candidateAod':0.2,'ozoneDU':300})
+        self.assertEqual(self.client.put('/api/display-view',json=data).status_code,200)
+        self.assertEqual(self.client.get('/api/display-view').json['view']['sky'],data['sky'])
+        for bad in ({'spectralEnabled':'false'},{'candidateAod':99},{'unknown':True}):
+            self.assertEqual(self.client.put('/api/display-view',json={**data,'sky':bad}).status_code,400)
+
     def test_stale_location_view_rejected(self):
         data=dict(config_revision=2,time_ms=1000,azimuth=50,event='sunset',playing=False,live=False)
         self.assertEqual(self.client.put('/api/display-view',json=data).status_code,409)

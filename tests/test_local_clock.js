@@ -17,5 +17,5 @@ context.updateCountdown();assert.equal(nodes.projectionCurrentTime.textContent,'
 now+=1000;context.updateCountdown();assert.equal(nodes.projectionCurrentTime.textContent,'19:00:01');assert.equal(nodes.projectionCountdown.textContent,'02:00:01');
 console.log('PASS: countdown becomes elapsed count-up; prominent clock uses location timezone and advances independently of simulation.');
 
-context.controllerPage=false;context.document={body:{dataset:{clock12:'false'},classList:{contains:function(){return true;}}}};context.realTimeView=false;context.playing=true;now=event-1000;context.updateCountdown();assert.equal(context.realTimeView,true);assert.equal(context.playing,false);
-console.log('PASS: sky-only receiver forces wall-clock mode rather than playback.');
+context.controllerPage=false;context.document={body:{dataset:{clock12:'false'},classList:{contains:function(){return true;}}}};context.realTimeView=false;context.playing=true;now=event-1000;context.updateCountdown();assert.equal(context.realTimeView,false);assert.equal(context.playing,true);
+console.log('PASS: sky-only layout retains shared preview/playback mode.');

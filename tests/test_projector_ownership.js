@@ -12,5 +12,5 @@ function check(query,expected){
  assert.equal(context.followsRemoteDisplay,expected,query+' repeated');
 }
 check('',false);check('?projector=1',false);check('?projector=1&auto=1&pi=1',true);
-assert.ok(source.indexOf('if(controllerPage||!(followsRemoteDisplay')>=0);
-console.log('PASS: projector layout retains controller ownership, including reload; only auto kiosk follows remote configuration.');
+assert.ok(source.includes("controllerPage&&document.body.dataset.browserEdition==='true'"));
+console.log('PASS: projector layout retains controller ownership, including reload; Pi browser sessions can follow shared configuration without changing their layout.');

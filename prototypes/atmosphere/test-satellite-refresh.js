@@ -34,3 +34,15 @@ interval();assert.equal(ticks,1);context.document.hidden=true;interval();assert.
 context.document.hidden=false;visibility();assert.equal(ticks,2);online();assert.equal(ticks,3);assert.equal(context.retryAt,0);assert.equal(context.failedEvent,'');
 context.enabled.checked=false;interval();assert.equal(ticks,3);
 console.log('Independent acquisition heartbeat, tab resume, reconnect retry and opt-out passed');
+
+const e={lat:40,lon:-105,time:3600000,key:'current'},old={lat:40,lon:-105,key:'old',data:{observedAt:new Date(3000000).toISOString()},profile:{time:3000000}};
+assert.equal(S.cached([old],e),old,'resume reuses eligible observation with matching profile');
+assert.equal(S.cached([old],{...e,lat:41}),null,'other location cannot reuse snapshot');
+assert.equal(S.cached([old],{...e,time:2999999}),null,'historical view cannot use a later observation');
+assert.equal(S.cached([old],{...e,time:9000000}),null,'expired projection is not restored');
+const exact={...old,key:'current'};assert.equal(S.cached([old,exact],e),exact,'same acquisition slot reuses stored response without fetching');
+console.log('Persistent snapshot eligibility: resume, exact slot, location, history and expiry passed');
+
+let records=[],stored=0;const cacheContext={SatelliteRefresh:S,WebCache:{get:async()=>records,put:async(key,value)=>{records=value;stored++;}},panel:{querySelector:id=>id==='#windProjection'?{checked:true}:{textContent:'Profile retained'}},data:old.data,profile:old.profile,loadedEvent:old.key};
+vm.createContext(cacheContext);vm.runInContext(source.slice(source.indexOf(' const snapshotCacheKey'),source.indexOf(' async function loadEvent')),cacheContext);
+(async()=>{cacheContext.saveSnapshot(e);await vm.runInContext('snapshotWrite',cacheContext);assert.equal(stored,1);assert.equal(records[0].profile.time,3000000);const restored=await cacheContext.cachedSnapshot(e);assert.equal(restored.data.observedAt,old.data.observedAt);assert.equal(restored.profile.time,3000000);console.log('Snapshot and wind/profile persist together and restore from browser storage');})().catch(e=>{console.error(e);process.exitCode=1;});

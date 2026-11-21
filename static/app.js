@@ -312,7 +312,6 @@ function selectEventView(){
 $('eventMode').addEventListener('change',selectEventView);
 
 function updateCountdown(){
- if(!controllerPage&&document.body.classList.contains('sky-only')&&result){realTimeView=true;playing=false;}
  const eventResult=typeof idleUpcoming!=='undefined'&&idleUpcoming&&result?{...result,[idleUpcoming.mode]:idleUpcoming.event}:result;
  const now=Date.now(),state=sunsetCountdown(eventResult,now,$('eventMode').value);
  if(typeof idleUpcoming!=='undefined'&&idleUpcoming)state.note+=' Next '+idleUpcoming.mode+': '+localDate(Date.parse(idleUpcoming.event.utc))+'.';
@@ -446,14 +445,15 @@ async function applyRemoteDisplay(state){
   else {resultDirty=false;displayedName=settings.name;updatePlaceTitle();if(eventChanged)selectEventView();}
   realTimeView=false;
   if(settings.live)enableLiveSky();
-  setProjector(settings.projector,true);
+  if(!controllerPage)setProjector(settings.projector,true);
   lastDisplayRevision=state.revision;
+  if(controllerPage){hdmiConfigRevision=state.revision;hdmiBaseKey=stableSettings(settings);hdmiBlocked=false;}
   autoLocationReady=settings.today;
   status('Remote display configuration applied.');
  }catch(error){status(error.message);remoteRetryAfter=Date.now()+30000;}finally{remoteApplying=false;}
 }
 async function pollRemoteDisplay(){
- if(controllerPage||!(followsRemoteDisplay||displayParams.get('auto')==='1')||remoteApplying||Date.now()<remoteRetryAfter)return;
+ if((controllerPage&&document.body.dataset.browserEdition==='true')||!(followsRemoteDisplay||displayParams.get('auto')==='1')||remoteApplying||Date.now()<remoteRetryAfter)return;
  try{const state=await api('/api/display-config');await applyRemoteDisplay(state);}
  catch(error){remoteRetryAfter=Date.now()+30000;status('Remote display connection interrupted; retrying.');}
 }
@@ -483,6 +483,19 @@ function controlSettings(){
  return {...coordinates(),name:currentName,date:$('date').value,radius:Number($('radius').value),zoom:Number($('zoom').value),source:$('source').value,
   event:$('eventMode').value,today:$('remoteToday').checked&&$('date').value===today,live:realTimeView,projector:$('remoteProjector').checked};
 }
+const mirroredSkyChecks=['atmosphereEnabled','spectralEnabled','candidateUseWeather','satelliteEnabled','windProjection','profileBases','terrainLightingEnabled','terrainCastShadows','terrainCloudSun'];
+const mirroredSkyNumbers={candidateAod:[0,3],ozoneDU:[0,600],satelliteThickness:[.2,6],peakPadding:[1,45]};
+function captureSkyOptions(){const options={};for(const id of mirroredSkyChecks)if($(id))options[id]=$(id).checked;for(const id of Object.keys(mirroredSkyNumbers))if($(id))options[id]=Number($(id).value);return options;}
+function applySkyOptions(options){
+ if(!options)return;
+ for(const id of [...mirroredSkyChecks,...Object.keys(mirroredSkyNumbers)]){
+  const el=$(id),value=options[id];if(!el||value===undefined)continue;
+  const check=mirroredSkyChecks.includes(id);if(check?el.checked===value:Number(el.value)===value)continue;
+  if(check)el.checked=value;else el.value=value;
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+ }
+}
+document.addEventListener('change',event=>{if(mirroredSkyChecks.includes(event.target.id)||Object.hasOwn(mirroredSkyNumbers,event.target.id))queueHDMI();});
 function queueHDMI(){
  if(typeof idleApplying!=='undefined'&&idleApplying)return;
  if(!controllerPage||!$('syncHDMI').checked||remoteApplying||hdmiBlocked||resultDirty||calculationPending||!result)return;
@@ -506,7 +519,7 @@ async function sendHDMI(){
    hdmiConfigRevision=saved.revision;lastDisplayRevision=saved.revision;hdmiBaseKey=key;
   }
   if(generation!==locationGeneration)return;
-  const state=await api('/api/display-view',{...jsonOptions({config_revision:hdmiConfigRevision,time_ms:simulationNow(),azimuth:viewAzimuth,event:$('eventMode').value,playing,live:realTimeView}),method:'PUT'});
+  const state=await api('/api/display-view',{...jsonOptions({config_revision:hdmiConfigRevision,time_ms:simulationNow(),azimuth:viewAzimuth,event:$('eventMode').value,playing,live:realTimeView,sky:captureSkyOptions()}),method:'PUT'});
   hdmiViewRevision=state.revision;
   $('syncStatus').textContent='Controls sent · awaiting HDMI confirmation';
  }catch(error){hdmiBaseKey='';$('syncStatus').textContent=error.message;if(error.status===409){hdmiBlocked=true;hdmiDirty=false;clearTimeout(hdmiTimer);hdmiTimer=null;}else{hdmiDirty=true;if(!hdmiTimer)hdmiTimer=setTimeout(()=>{hdmiTimer=null;sendHDMI();},1500);}}
@@ -520,10 +533,10 @@ async function followHDMIView(){
  if(state.revision===hdmiViewRevision){if(Date.now()-lastHDMIAck>4000){await api('/api/display-ack',jsonOptions({revision:state.revision}));lastHDMIAck=Date.now();}return;}
  hdmiViewRevision=state.revision;
  $('eventMode').value=view.event;syncEventControls();
- const skyOnly=document.body.classList.contains('sky-only');
- const target=(skyOnly||view.live)?Date.now():view.time_ms+(view.playing?Math.max(0,Date.now()-view.updated_ms)*30:0);
+ const wasApplying=remoteApplying;remoteApplying=true;try{applySkyOptions(view.sky);}finally{remoteApplying=wasApplying;}
+ const target=view.live?Date.now():view.time_ms+(view.playing?Math.max(0,Date.now()-view.updated_ms)*30:0);
  setTime(target,true,true);
- viewAzimuth=view.azimuth;playing=!skyOnly&&view.playing;realTimeView=skyOnly||view.live;updatePlay();draw();updateCountdown();
+ viewAzimuth=view.azimuth;playing=view.playing;realTimeView=view.live;updatePlay();draw();updateCountdown();
  await api('/api/display-ack',jsonOptions({revision:state.revision}));lastHDMIAck=Date.now();
 }
 $('syncHDMI').checked=controllerPage;
@@ -533,7 +546,7 @@ api('/api/display-target').then(target=>{$('syncStatus').textContent='HDMI contr
 
 let viewPollPending=false;
 setInterval(async()=>{
- if(controllerPage||viewPollPending||remoteApplying||!result||!(followsRemoteDisplay||displayParams.get('auto')==='1'))return;
+ if((controllerPage&&document.body.dataset.browserEdition==='true')||viewPollPending||remoteApplying||hdmiSending||hdmiDirty||!result||!(followsRemoteDisplay||displayParams.get('auto')==='1'))return;
  viewPollPending=true;
  try{await followHDMIView();}catch(error){}finally{viewPollPending=false;}
 },160);

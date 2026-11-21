@@ -304,6 +304,7 @@ const CandidateAtmosphere=(()=>{
 })();
 
 async function initializeCandidate(){
+ if(document.body.dataset.browserEdition==='false'&&controllerPage){try{const state=await api('/api/display-config');if(state.config){followsRemoteDisplay=true;lastDisplayRevision=0;await applyRemoteDisplay(state);await followHDMIView();CandidateAtmosphere.refresh();return;}}catch(error){status('Shared scene unavailable: '+error.message);}}
  if(!result&&terrainSelectionRestored){if(realtimeRequested)await calculateToday();else await calculateCurrent();CandidateAtmosphere.refresh();return;}
  if(!TerrainOption.enabled&&!result){if(!$('lat').value){$('lat').value=39.6888;$('lon').value=-105.156;$('height').value=2;$('date').value=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());currentName=displayedName='ZIP 80228 · approximate area center';}await calculateCurrent();CandidateAtmosphere.refresh();return;}
  if(result){CandidateAtmosphere.invalidate();draw();CandidateAtmosphere.refresh();calculateCurrent();return;}
