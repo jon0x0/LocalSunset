@@ -240,7 +240,7 @@ const CandidateAtmosphere=(()=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureWeather();});
  // Keep the graph cursor synced to playback, wheel, clocks and saved views.
  setInterval(requestRefresh,1000);
- return {precipitationText,imageInfo:()=>({frame:lastFrameHealth,selectedTime:realTimeView?Date.now():currentTime,realtime:realTimeView,atmosphere:$('atmosphereEnabled').checked,rendering:!!skyPending,workerFailed:skyWorkerFailed}),diagnostics:()=>({...lastFrameHealth,selectedTime:currentTime,realtime:realTimeView,loading:typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating}),renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
+ return {weatherAt:weather,precipitationText,imageInfo:()=>({frame:lastFrameHealth,selectedTime:realTimeView?Date.now():currentTime,realtime:realTimeView,atmosphere:$('atmosphereEnabled').checked,rendering:!!skyPending,workerFailed:skyWorkerFailed}),diagnostics:()=>({...lastFrameHealth,selectedTime:currentTime,realtime:realTimeView,loading:typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating}),renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
 })();
 
 async function initializeCandidate(){

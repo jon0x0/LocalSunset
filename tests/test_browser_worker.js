@@ -26,7 +26,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
  vm.runInContext('Tiles.prototype.sampleMany=async function(points){meshSamples++;this.used.add("test elevation");return Float64Array.from(points,(_,i)=>1000+i%65);}',context);
  const lightingInput={lat:0,lon:0,zoom:10,source:'global'};
  await context.self.onmessage({data:{id:'mesh1',kind:'mesh',input:lightingInput}});
- assert.equal(messages.at(-1).status,'mesh');assert.equal(messages.at(-1).mesh.heights.length,65*65);assert.equal(context.meshSamples,1);
+ assert.equal(messages.at(-1).status,'mesh');assert.equal(messages.at(-1).mesh.heights.length,193*193);assert.equal(context.meshSamples,1);
  await context.self.onmessage({data:{id:'mesh2',kind:'mesh',input:lightingInput}});assert.equal(context.meshSamples,1,'mesh cache prevents another terrain download');
  await context.self.onmessage({data:{id:'mesh3',kind:'mesh',input:{...lightingInput,lat:85}}});assert.equal(messages.at(-1).status,'error');
  console.log('Browser worker cached results, cross-date horizon reuse and tile seam sampling passed.');

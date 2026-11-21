@@ -11,3 +11,9 @@ assert.deepEqual(M.radiance(10,30,-3,.12,2000,{spectral:true,ozoneDU:300}),S.rad
 assert.deepEqual(M.radiance(10,30,-3,.12,2000,{spectral:false}),M.radiance(10,30,-3,.12,2000));
 assert.ok(S.cloudLight(-4,8000,.12,{ozoneDU:300}).every(v=>Number.isFinite(v)&&v>=0));
 console.log('Spectral finite radiance, ozone extinction, twilight shadow, cloud light and legacy-mode parity passed');
+
+const dawnSun=S.directLight(0,3000,.12,{ozoneDU:300}),daySun=S.directLight(30,3000,.12,{ozoneDU:300});
+assert.ok(dawnSun[0]/Math.max(.00001,dawnSun[2])>daySun[0]/daySun[2],'direct low Sun is warmer than high Sun');
+assert.ok(luminance(dawnSun)<luminance(daySun),'atmospheric attenuation is retained, not normalized away');
+assert.deepEqual(S.directLight(-10,3000,.12),[0,0,0],'Earth blocks direct illumination before dawn');
+console.log('Warm direct solar spectrum and attenuation passed');

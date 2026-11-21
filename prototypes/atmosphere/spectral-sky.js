@@ -25,5 +25,6 @@
   for(const az of [0,90,180,270]){const sky=radiance(45,az,sunAlt,aod,height,options);for(let i=0;i<3;i++)diffuse[i]+=sky[i]/4;}
   const rgb=direct.map((v,i)=>v/(4*Math.PI)+diffuse[i]*.8);if(cloudCache.size>512)cloudCache.clear();cloudCache.set(key,rgb);return rgb;
  }
- const api={radiance,cloudLight,toRGB,wavelengths:W,ozone};root.SpectralSky=api;if(typeof module!=='undefined')module.exports=api;
+ function directLight(sunAlt,height,aod=.12,options={}){const p=[0,0,R+Math.max(.001,height/1000)],s=[Math.cos(sunAlt*D),0,Math.sin(sunAlt*D)];return toRGB(transmission(p,s,aod,options.ozoneDU??300).map((v,i)=>v*solar[i]));}
+ const api={directLight,radiance,cloudLight,toRGB,wavelengths:W,ozone};root.SpectralSky=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

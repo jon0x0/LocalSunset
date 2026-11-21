@@ -109,5 +109,10 @@ const SatelliteClouds=(()=>{
  function imageInfo(t,lat,lon){
   const active=state(t,lat,lon);return {state:active,loading:isUpdating(),stage:loadingStage,source:data?.source||'No satellite observation',observedAt:data?.observedAt||null,topObservedAt:data?.heightObservedAt||null,products:data?.products||[],offsetMinutes:data?(t-Date.parse(data.observedAt))/60000:null,profileTime:profile?.time||null,baseEstimation:panel.querySelector('#profileBases').checked,profileStatus:panel.querySelector('#profileStatus').textContent,windProjection:panel.querySelector('#windProjection').checked,assumedThicknessKm:Number(thickness.value),message:status.textContent};
  }
- return {shade,update,imageInfo,get updating(){return isUpdating();},get revision(){return revision;}};
+ function sunTransmission(t,lat,lon,height,alt,az){
+  if(!state(t,lat,lon).startsWith('active'))return null;
+  const c=SatelliteCloudGeometry.lookup(data,lat,lon,height,alt,az,Number(thickness.value),panel.querySelector('#profileBases').checked?(top,clat,clon)=>CloudBase.estimate(profile,top,clat,clon,Date.parse(data.observedAt)):null,panel.querySelector('#windProjection').checked?(z,clat,clon)=>CloudMotion.backtrace(profile,z,clat,clon,Date.parse(data.observedAt),t)||[clat,clon]:null);
+  return c?c.cover?Math.exp(-(c.tau??2)/Math.max(.04,Math.sin(Math.max(0,alt)*Math.PI/180))):1:null;
+ }
+ return {shade,update,imageInfo,sunTransmission,get updating(){return isUpdating();},get revision(){return revision;}};
 })();
