@@ -95,20 +95,23 @@ const CandidateAtmosphere=(()=>{
  async function jumpMilestone(direction){
   if(!result||navigationBusy)return;
   const source=result,live=realTimeView,mode=$('eventMode').value,time=currentTime,generation=locationGeneration;
-  const a=buildAnalysis(),selected=navigationFocus?.event||tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode).find(e=>e.key===countdownSelection);
-  const anchor=live?(direction>0?Math.max(Date.now(),selected?.t||0):selected?.t??Date.now()):currentTime;
-  const date=navigationFocus?.date||site().date;
+  const now=Date.now(),anchor=live?now:currentTime;
+  const date=site().date,realtimeDate=new Intl.DateTimeFormat('en-CA',{timeZone:result.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
   const cancelled=()=>result!==source||locationGeneration!==generation||realTimeView!==live||$('eventMode').value!==mode||(!live&&currentTime!==time);
   navigationBusy=true;syncSkyMode();
   try{
-   const event=await EventNavigation.find({date,anchor,direction,cancelled,eventsForDay:async date=>{
+   const event=await EventNavigation.find({date,anchor,direction,cancelled,realtimeTime:live?null:now,realtimeDate,eventsForDay:async date=>{
     const prediction=await predictionForDay(date);return ['sunrise','sunset'].flatMap(mode=>{const a=analyzePrediction(prediction,mode);return tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode).map(e=>({...e,mode,prediction}));});
    }});
    if(cancelled())return;
    if(!event){status('No sunrise or sunset milestones found within a year.');return;}
-   $('eventMode').value=event.mode;countdownSelection=event.key;eventRowsKey='';
-   if(live)navigationFocus={source,prediction:event.prediction,date:event.date,mode:event.mode,event};
-   else previewPrediction(event.prediction,event.t);
+   if(event.realtime){
+    const prediction=await predictionForDay(event.date);if(cancelled())return;
+    countdownSelection=null;previewPrediction(prediction,Date.now());enableLiveSky();setTime(Date.now(),true);
+   }else{
+    $('eventMode').value=event.mode;countdownSelection=event.key;previewPrediction(event.prediction,event.t);
+   }
+   eventRowsKey='';
    syncEventControls();invalidate();refresh();persistView();
   }catch(e){status('Event navigation: '+e.message);}finally{navigationBusy=false;syncSkyMode();}
  }
@@ -124,6 +127,19 @@ const CandidateAtmosphere=(()=>{
   const row=document.createElement('tr');row.append(...events.map(event=>{const cell=document.createElement('td');cell.textContent=Number.isFinite(event.t)?stamp(event.t):'—';return cell;}));$('skyEventRows').replaceChildren(row);
  }
  function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false)+(navigationFocus&&localDate(t)!==localDate(currentTime)?' · '+localDate(t):'');}
+ const statusEvents=new WeakMap();
+ function sceneStatus(a,window,mode,time,live,playing){
+  if(!live)return SkyCountdown.displayStatus(a,window,mode,time,false,playing);
+  const cached=statusEvents.get(result);let events=cached?.enabled===TerrainOption.enabled?cached.events:null;
+  if(!events){
+   const p=site(),o=new Astronomy.Observer(p.lat,p.lon,result.terrain.observer_m),start=result.timeline[0].t,end=result.timeline.at(-1).t;
+   events=['sunrise','sunset'].flatMap(mode=>{
+    const astro=Astronomy.SearchRiseSet('Sun',o,mode==='sunrise'?1:-1,new Date(start),(end-start)/86400000);
+    return [{mode,t:astro&&astro.date.getTime()<end?astro.date.getTime():null},{mode,t:TerrainOption.enabled&&result[mode]?Date.parse(result[mode].utc):null}];
+   }).filter(e=>Number.isFinite(e.t));statusEvents.set(result,{events,enabled:TerrainOption.enabled});
+  }
+  return SkyCountdown.liveStatus(events,time);
+ }
  function syncSkyMode(){
   const button=$('skyRealtime');if(!button)return;for(const id of ['skyPrevEvent','skyNextMilestone'])if($(id)){$(id).disabled=!result||navigationBusy;$(id).textContent=navigationBusy?'Finding…':id==='skyPrevEvent'?'Prev':'Next';}
   button.textContent=realTimeView?'Realtime':realtimeRequested?'Starting…':'Go Realtime';
@@ -152,7 +168,7 @@ const CandidateAtmosphere=(()=>{
   if(!result||!document.body.classList.contains('projector'))return;
   const a=buildAnalysis();if(!a)return;const mode=$('eventMode').value,window=PeakAnalysis.windowAround(a.samples,a.peak,padding()),timing=realTimeView?liveTiming(a,window,mode):SkyCountdown.relative(a,window,mode,currentTime);
   const clock=realTimeView?Date.now():currentTime;
-  document.querySelector('.projection-countdown > span').textContent=SkyCountdown.displayStatus(a,window,mode,clock,realTimeView,playing);
+  document.querySelector('.projection-countdown > span').textContent=sceneStatus(a,window,mode,clock,realTimeView,playing);
   renderClock('projectionCurrentTime',formatClock(clock,result.timezone));
   $('projectionCountdownLabel').textContent=realTimeView?(countdownSelection?'SELECTED EVENT · LIVE CLOCK':'NEXT EVENT · LIVE CLOCK'):'From current simulated time:';
   $('projectionCountdown').textContent=timing.label;
@@ -180,7 +196,7 @@ const CandidateAtmosphere=(()=>{
   const show=$('showColorComponents').checked;$('colorComponents').hidden=!show;
   if(show&&s.length){const nearest=s.reduce((a,b)=>Math.abs(a.t-currentTime)<=Math.abs(b.t-currentTime)?a:b),warm=s.reduce((a,b)=>a.warmStrength>=b.warmStrength?a:b);$('componentReadout').textContent='At '+stamp(nearest.t)+': colorfulness '+nearest.colorfulness.toFixed(0)+'/100 · warm strength '+nearest.warmStrength.toFixed(0)+'/100. '+(warm.warmStrength>=1?'Warm-strength maximum: '+stamp(warm.t)+'.':'No appreciable warm-color strength in this interval.');}
   $('skyTimeBadge').textContent=stamp(currentTime)+' · '+result.timezone;
-  $('skyDisplayStatus').textContent=SkyCountdown.displayStatus(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode,realTimeView?Date.now():currentTime,realTimeView,playing);
+  $('skyDisplayStatus').textContent=sceneStatus(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode,realTimeView?Date.now():currentTime,realTimeView,playing);
   syncTerrainVisibility();refreshProjector();graph(a);
  }
  function graph(a){

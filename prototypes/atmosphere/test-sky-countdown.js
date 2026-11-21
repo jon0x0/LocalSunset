@@ -34,3 +34,10 @@ assert.strictEqual(C.cycleEvent(cycle,null,1500,1).key,'c');
 assert.strictEqual(C.cycleEvent(cycle,'c',1500,1).key,'b');
 assert.strictEqual(C.cycleEvent(cycle,'b',1500,1).key,'a');
 assert.strictEqual(C.cycleEvent(cycle,'a',1500,-1).key,'b');
+
+const liveEvents=[{mode:'sunrise',t:7*3600000},{mode:'sunset',t:17*3600000}];
+assert.equal(C.liveStatus(liveEvents,12*3600000),'Current sky');
+assert.equal(C.liveStatus(liveEvents,8*3600000),'Realtime · Sunrise sky');
+assert.equal(C.liveStatus(liveEvents,8*3600000+1),'Current sky');
+assert.equal(C.liveStatus(liveEvents,17.5*3600000),'Realtime · Sunset sky');
+assert.equal(C.liveStatus([],0),'Current sky');
