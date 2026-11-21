@@ -23,7 +23,9 @@ fi
 PORT_NUMBER="${PORT:-5000}"
 SERVER_PID=''
 BROWSER_PID=''
+WATCHDOG_PID=''
 cleanup() {
+  if [[ -n "$WATCHDOG_PID" ]]; then kill "$WATCHDOG_PID" 2>/dev/null || true; fi
   if [[ -n "$BROWSER_PID" ]]; then kill "$BROWSER_PID" 2>/dev/null || true; fi
   if [[ -n "$SERVER_PID" ]]; then kill "$SERVER_PID" 2>/dev/null || true; fi
 }
@@ -54,7 +56,18 @@ while true; do
     --user-data-dir="$ROOT_DIR/.cache/chromium-kiosk" \
     "http://127.0.0.1:$PORT_NUMBER/?projector=1&pi=1&auto=1" &
   BROWSER_PID=$!
+  if [[ "${LOCAL_SUNSET_KIOSK_RESTART:-0}" == 1 ]]; then
+    python3 "$ROOT_DIR/raspi/kiosk-watchdog.py" "$BROWSER_PID" "$PORT_NUMBER" &
+    WATCHDOG_PID=$!
+  fi
   wait "$BROWSER_PID" || true
+  if [[ -n "$WATCHDOG_PID" ]]; then
+    kill "$WATCHDOG_PID" 2>/dev/null || true
+    wait "$WATCHDOG_PID" 2>/dev/null || true
+    WATCHDOG_PID=''
+  fi
+  if [[ -n "$WATCHDOG_PID" ]]; then kill "$WATCHDOG_PID" 2>/dev/null || true; wait "$WATCHDOG_PID" 2>/dev/null || true; fi
+  WATCHDOG_PID=''
   BROWSER_PID=''
   if [[ "${LOCAL_SUNSET_KIOSK_RESTART:-0}" != 1 ]]; then break; fi
   if (( SECONDS-STARTED < 20 )); then FAILURES=$((FAILURES+1)); else FAILURES=0; fi

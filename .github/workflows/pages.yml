@@ -24,7 +24,9 @@ jobs:
         with:
           node-version: '22'
       - name: Verify kiosk single-instance guard
-        run: python tests/test_kiosk_supervisor.py
+        run: |
+          python tests/test_kiosk_supervisor.py
+          python tests/test_kiosk_watchdog.py
       - name: Audit public source
         run: python tools/audit_public.py
       - name: Verify browser calculations and display regressions

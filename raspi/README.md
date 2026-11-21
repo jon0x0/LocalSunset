@@ -115,3 +115,12 @@ For a Sway console kiosk on Pi OS Lite, launch the generic kiosk script from the
 ### Password-free LAN option
 
 Use `bash raspi/run.sh --network --no-auth --no-browser` to disable the application login explicitly. Any device that can reach the port can configure the app; cross-origin change checks remain active.
+
+
+The console kiosk keeps a single browser supervisor. Where the atmosphere server
+provides `/api/sky-render-status`, the supervisor also checks the page heartbeat:
+after a three-minute startup grace period, a heartbeat older than two minutes
+restarts the supervised browser. This recovers a crashed renderer even when the
+Chromium main process remains alive. Missing/unreachable diagnostic endpoints do
+not trigger restarts. Browser profiles, saved places and projector settings are
+retained. This is crash recovery, not a fix for Chromium's underlying native crash.
