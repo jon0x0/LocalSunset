@@ -47,15 +47,15 @@ const CandidateAtmosphere=(()=>{
   }return out;
  }
  function horizon(az){const p=((az%360+360)%360)/360*result.terrain.horizon.length,i=Math.floor(p);return result.terrain.horizon[i]*(1-(p-i))+result.terrain.horizon[(i+1)%result.terrain.horizon.length]*(p-i);}
- function buildAnalysis(){
-  if(!result||!renderedKey)return null;
-  const key=[TerrainOption.enabled,renderedKey,$('eventMode').value,JSON.stringify(optics()),aod(),$('candidateUseWeather').checked,weatherSite,weatherData&&weatherData.hourly.time[0]].join('|');
+ function analyzePrediction(prediction,mode){
+  if(!prediction||!renderedKey)return null;
+  const key=[TerrainOption.enabled,renderedKey,prediction.timeline[0].t,mode,JSON.stringify(optics()),aod(),$('candidateUseWeather').checked,weatherSite,weatherData&&weatherData.hourly.time[0]].join('|');
   if(key===analysisKey)return analysis;
   analysisKey=key;skyKey='';
-  const p=site(),mode=$('eventMode').value,o=new Astronomy.Observer(p.lat,p.lon,result.terrain.observer_m),start=result.timeline[0].t,end=result.timeline.at(-1).t;
+  const p=site(),o=new Astronomy.Observer(p.lat,p.lon,prediction.terrain.observer_m),start=prediction.timeline[0].t,end=prediction.timeline.at(-1).t;
   const event=Astronomy.SearchRiseSet('Sun',o,mode==='sunrise'?1:-1,new Date(start),(end-start)/86400000);
   const astro=event&&event.date.getTime()<end?event.date.getTime():null;
-  const contact=!result.terrain.disabled&&TerrainOption.enabled&&result[mode]?Date.parse(result[mode].utc):null,center=astro??contact;
+  const contact=!prediction.terrain.disabled&&TerrainOption.enabled&&prediction[mode]?Date.parse(prediction[mode].utc):null,center=astro??contact;
   if(center===null){analysis={samples:[],astro,contact,peak:null};return analysis;}
   const samples=[];
   for(let t=Math.max(start,center-3600000);t<=Math.min(end,center+3600000);t+=60000){
@@ -67,21 +67,65 @@ const CandidateAtmosphere=(()=>{
   const peak=PeakAnalysis.peak(samples);
   analysis={samples,astro,contact,peak};return analysis;
  }
- function jumpMilestone(direction){const a=buildAnalysis();if(!a)return;if(realTimeView){const event=SkyCountdown.cycleEvent(tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value),countdownSelection,Date.now(),direction);if(event){countdownSelection=event.key;eventRowsKey='';refresh();}return;}const event=SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction);if(!event)return;playing=false;updatePlay();setTime(event.t);updateCountdown();persistView();refresh();}
+ // Countdown focus may refer to another day while the live sky stays on today's clock.
+ let navigationFocus=null,navigationBusy=false,navigationWorker=null,dayCache=new Map(),dayTerrain=null;
+ function buildAnalysis(){
+  if(navigationFocus&&(!realTimeView||navigationFocus.source!==result||navigationFocus.mode!==$('eventMode').value))navigationFocus=null;
+  return analyzePrediction(navigationFocus?.prediction||result,$('eventMode').value);
+ }
+ function predictionForDay(date){
+  if(date===JSON.parse(renderedKey).date)return Promise.resolve(result);
+  if(dayTerrain!==result.terrain){dayCache.clear();dayTerrain=result.terrain;}
+  if(dayCache.has(date))return dayCache.get(date);
+  if(!navigationWorker)navigationWorker=new Worker('solar-day-worker.js');
+  const p=site(),worker=navigationWorker;
+  const promise=new Promise((resolve,reject)=>{
+   const done=({data})=>{worker.removeEventListener('message',done);worker.removeEventListener('error',fail);data.error?reject(new Error(data.error)):resolve(data.result);};
+   const fail=e=>{worker.removeEventListener('message',done);worker.removeEventListener('error',fail);navigationWorker=null;worker.terminate();reject(new Error(e.message||'Could not calculate adjacent-day events'));};
+   worker.addEventListener('message',done);worker.addEventListener('error',fail);
+   worker.postMessage({lat:p.lat,lon:p.lon,date,zone:result.timezone,terrain:result.terrain});
+  });
+  if(dayCache.size>=8)dayCache.delete(dayCache.keys().next().value);dayCache.set(date,promise);promise.catch(()=>dayCache.delete(date));return promise;
+ }
+ function previewPrediction(prediction,t){
+  navigationFocus=null;playing=false;realTimeView=false;realtimeRequested=false;
+  if(prediction!==result){const p=site();p.date=new Intl.DateTimeFormat('en-CA',{timeZone:prediction.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(prediction.timeline[0].t));$('date').value=p.date;result=prediction;renderedKey=JSON.stringify(p);resultDirty=false;currentTime=t;updatePlaceTitle();showResult(true);}
+  updatePlay();setTime(t);updateCountdown();persistScene();persistView();
+ }
+ async function jumpMilestone(direction){
+  if(!result||navigationBusy)return;
+  const source=result,live=realTimeView,mode=$('eventMode').value,time=currentTime,generation=locationGeneration;
+  const a=buildAnalysis(),selected=navigationFocus?.event||tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode).find(e=>e.key===countdownSelection);
+  const anchor=live?(direction>0?Math.max(Date.now(),selected?.t||0):selected?.t??Date.now()):currentTime;
+  const date=navigationFocus?.date||site().date;
+  const cancelled=()=>result!==source||locationGeneration!==generation||realTimeView!==live||$('eventMode').value!==mode||(!live&&currentTime!==time);
+  navigationBusy=true;syncSkyMode();
+  try{
+   const event=await EventNavigation.find({date,anchor,direction,cancelled,eventsForDay:async date=>{
+    const prediction=await predictionForDay(date);return ['sunrise','sunset'].flatMap(mode=>{const a=analyzePrediction(prediction,mode);return tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),mode).map(e=>({...e,mode,prediction}));});
+   }});
+   if(cancelled())return;
+   if(!event){status('No sunrise or sunset milestones found within a year.');return;}
+   $('eventMode').value=event.mode;countdownSelection=event.key;eventRowsKey='';
+   if(live)navigationFocus={source,prediction:event.prediction,date:event.date,mode:event.mode,event};
+   else previewPrediction(event.prediction,event.t);
+   syncEventControls();invalidate();refresh();persistView();
+  }catch(e){status('Event navigation: '+e.message);}finally{navigationBusy=false;syncSkyMode();}
+ }
  let countdownSelection=null,eventRowsKey='';
  function tableEvents(a,window,mode){return [{key:'contact',t:a.contact,label:'Local terrain '+mode},{key:'start',t:window?.[0],label:'Viewing window start'},{key:'peak',t:a.peak?.t,label:mode[0].toUpperCase()+mode.slice(1)+' peak'},{key:'end',t:window?.[1],label:'Viewing window end'},{key:'astro',t:a.astro,label:'Astronomical '+mode}].filter(e=>e.key!=='contact'||TerrainOption.enabled);}
  function liveTiming(a,window,mode){const chosen=tableEvents(a,window,mode).find(e=>e.key===countdownSelection&&Number.isFinite(e.t));return chosen?SkyCountdown.countdownTo(chosen,Date.now()):SkyCountdown.next(a,window,mode,Date.now());}
  function refreshEventTable(a,window,mode){
   const events=tableEvents(a,window,mode),now=realTimeView?Date.now():currentTime,chosen=events.find(e=>e.key===countdownSelection&&Number.isFinite(e.t)),timing=chosen?SkyCountdown.countdownTo(chosen,now):SkyCountdown.next(a,window,mode,now),selected=chosen||events.find(e=>e.t===timing.event?.t);
   $('selectedEventCountdown').textContent=(realTimeView?'Realtime countdown: ':'From simulated time: ')+timing.label;
-  $('skyEventZone').textContent=result.timezone;
+  $('skyEventZone').textContent=result.timezone+(navigationFocus?' · '+localDate(navigationFocus.event.t):'');
   const key=JSON.stringify([events,countdownSelection,selected?.key,result.timezone]);if(key===eventRowsKey)return;eventRowsKey=key;
   $('skyEventHead').replaceChildren(...events.map(event=>{const head=document.createElement('th');head.scope='col';head.textContent=event.label.replace('Local terrain','Terrain').replace('Viewing window','Window');return head;}));
   const row=document.createElement('tr');row.append(...events.map(event=>{const cell=document.createElement('td');cell.textContent=Number.isFinite(event.t)?stamp(event.t):'—';return cell;}));$('skyEventRows').replaceChildren(row);
  }
- function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false);}
+ function stamp(t){return t===null?'No event':formatClock(t,result.timezone,false)+(navigationFocus&&localDate(t)!==localDate(currentTime)?' · '+localDate(t):'');}
  function syncSkyMode(){
-  const button=$('skyRealtime');if(!button)return;const a=buildAnalysis();for(const [id,direction] of [['skyPrevEvent',-1],['skyNextMilestone',1]])if($(id))$(id).disabled=!a||!(realTimeView?tableEvents(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value).some(e=>Number.isFinite(e.t)):SkyCountdown.adjacent(a,PeakAnalysis.windowAround(a.samples,a.peak,padding()),$('eventMode').value,realTimeView?Date.now():currentTime,direction));
+  const button=$('skyRealtime');if(!button)return;for(const id of ['skyPrevEvent','skyNextMilestone'])if($(id)){$(id).disabled=!result||navigationBusy;$(id).textContent=navigationBusy?'Finding…':id==='skyPrevEvent'?'Prev':'Next';}
   button.textContent=realTimeView?'Realtime':realtimeRequested?'Starting…':'Go Realtime';
   button.setAttribute('aria-pressed',String(realTimeView));button.classList.toggle('is-live',realTimeView);
   button.title=realTimeView?'Sky follows the real clock. Click to pause.':'Sky shows a selected preview time. Click to follow the real clock.';
@@ -197,9 +241,9 @@ const CandidateAtmosphere=(()=>{
  for(const id of ['candidateAod','atmosphereEnabled','spectralEnabled','ozoneDU'])$(id).addEventListener('change',()=>{invalidate();draw();refresh();});
  $('showColorComponents').onchange=refresh;
  $('peakPadding').onchange=()=>{$('peakPadding').value=padding();refresh();};
- $('colorTime').oninput=()=>{const a=buildAnalysis();if(a&&a.samples.length){playing=false;updatePlay();setTime(a.samples[+$('colorTime').value].t);refresh();}};
- $('jumpColorPeak').onclick=()=>{const a=buildAnalysis();if(a&&a.peak){playing=false;updatePlay();setTime(a.peak.t);centerSunset();refresh();}};
- $('eventMode').addEventListener('change',()=>{countdownSelection=null;invalidate();requestRefresh();});
+ $('colorTime').oninput=()=>{const a=buildAnalysis();if(a&&a.samples.length){playing=false;updatePlay();previewPrediction(navigationFocus?.prediction||result,a.samples[+$('colorTime').value].t);refresh();}};
+ $('jumpColorPeak').onclick=()=>{const a=buildAnalysis();if(a&&a.peak){playing=false;updatePlay();previewPrediction(navigationFocus?.prediction||result,a.peak.t);centerSunset();refresh();}};
+ $('eventMode').addEventListener('change',()=>{navigationFocus=null;countdownSelection=null;invalidate();requestRefresh();});
  $('time').addEventListener('input',requestRefresh);
  // Intercept only single-pointer horizontal drags in timeline mode. Pan mode
  // leaves the original production pointer and pinch behavior in place.
