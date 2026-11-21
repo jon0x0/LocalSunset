@@ -7,7 +7,7 @@ function syncTerrainVisibility(){
  $('terrainOptionNote').hidden=TerrainOption.enabled;
  const check=$('candidateTerrainEnabled');check.checked=TerrainOption.enabled;check.disabled=calculationPending;
  const fit=document.querySelector('.sky-resize-bar button');if(fit)fit.disabled=!available;
- const calculate=$('calculate');if(calculate.firstChild&&calculate.firstChild.nodeType===3)calculate.firstChild.textContent=TerrainOption.enabled?'Trace sunrise & sunset ':'Calculate sky ';
+ const calculate=$('calculate');calculate.title=TerrainOption.enabled?'Apply location and settings; cached terrain is reused where available.':'Apply location and settings without surrounding terrain downloads.';
 }
 const CandidateAtmosphere=(()=>{
  let analysis=null,analysisKey='',skyKey='',skyImage=null,weatherData=null,weatherSite='',gesture=null,scheduled=false;

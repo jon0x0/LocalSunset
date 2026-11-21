@@ -55,7 +55,20 @@
  const chart=document.getElementById('colorChart'),comparison=document.getElementById('showColorComponents').parentNode;
  heading.after(comparison);comparison.after(chart);
  const miniLegend=document.createElement('p');miniLegend.className='mini-chart-legend';miniLegend.innerHTML='<span style="color:#ffd28a">━ Brightness</span> · <span style="color:#ff8e87">━ Color potential</span>';chart.before(miniLegend);
+ // Fold the on-image forecast without changing acquisition or source IDs.
+ const forecastPreference='localsunset.atmosphere.candidate.forecastExpanded';let forecastOpen=false;
+ try{forecastOpen=localStorage.getItem(forecastPreference)==='true';}catch(e){}
+ const forecastDrawers=[];
+ function foldForecast(id){
+  const content=document.getElementById(id),drawer=document.createElement('details'),summary=document.createElement('summary');
+  drawer.className='sky-forecast-drawer';drawer.open=forecastOpen;
+  summary.textContent='Forecast';summary.title='Show forecast for the selected time. Collapsing hides this readout; weather downloads stay enabled.';
+  content.before(drawer);drawer.append(summary,content);drawer.hidden=content.hidden;
+  new MutationObserver(()=>{drawer.hidden=content.hidden;}).observe(content,{attributes:true,attributeFilter:['hidden']});
+  drawer.addEventListener('toggle',()=>{forecastOpen=drawer.open;try{localStorage.setItem(forecastPreference,String(forecastOpen));}catch(e){}for(const other of forecastDrawers)if(other!==drawer&&other.open!==forecastOpen)other.open=forecastOpen;});forecastDrawers.push(drawer);
+ }
+ foldForecast('skyCloudEstimate');
  document.getElementById('source').closest('details').classList.add('terrain-settings');
  // Detailed clocks, terrain metrics and methods remain below the forecast.
- main.querySelector('header').append(document.getElementById('projectorToggle'));const projectorWindow=document.createElement('small');projectorWindow.id='projectorBestWindow';document.getElementById('projectionCurrentZone').after(projectorWindow);const projectorCloud=document.createElement('small');projectorCloud.id='projectorCloudEstimate';projectorCloud.hidden=true;projectorWindow.after(projectorCloud);
+ main.querySelector('header').append(document.getElementById('projectorToggle'));const projectorWindow=document.createElement('small');projectorWindow.id='projectorBestWindow';document.getElementById('projectionCurrentZone').after(projectorWindow);const projectorCloud=document.createElement('small');projectorCloud.id='projectorCloudEstimate';projectorCloud.hidden=true;projectorWindow.after(projectorCloud);foldForecast('projectorCloudEstimate');
 })();

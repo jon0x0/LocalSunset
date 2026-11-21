@@ -9,7 +9,7 @@ var context={result:old,resultDirty:false,calculationPending:false,renderedKey:'
  api:async url=>{if(url==='/api/calculate')return {id:1};if(fail)throw Error('offline');return await new Promise(r=>resolveJob=r);}};
 vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf('function calculationInput()'),source.indexOf('for(const id')),context);
-vm.runInContext(source.slice(source.indexOf('async function calculateCurrent()'),source.indexOf("$('calculateForm')")),context);
+vm.runInContext(source.slice(source.indexOf('async function calculateCurrent()'),source.indexOf("$('calculateForm')",source.indexOf('async function calculateCurrent()'))),context);
 (async()=>{
  context.invalidateResult();assert.strictEqual(context.result,old);context.updatePlaceTitle();assert.equal(nodes.placeTitle.textContent,'OLD POINT');
  var pending=context.calculateCurrent();await new Promise(r=>setImmediate(r));assert.strictEqual(context.result,old);assert.equal(context.calculationPending,true);

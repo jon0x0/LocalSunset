@@ -39,7 +39,7 @@
    for(const [id,job] of jobs)if(jobs.size>8&&['done','error'].includes(job.status))jobs.delete(id);
    const id=String(++serial);jobs.set(id,{status:'queued',message:'Waiting for browser terrain worker...',signature});queue.push({id,input:body});pump();return {id};
   }
-  if(path.startsWith('/api/jobs/')){const result=jobs.get(path.slice('/api/jobs/'.length));if(!result)throw Error('Browser calculation not found. Trace this location again.');return result;}
+  if(path.startsWith('/api/jobs/')){const result=jobs.get(path.slice('/api/jobs/'.length));if(!result)throw Error('Browser calculation not found. Apply this location again.');return result;}
   if(path==='/api/cache'){
    if(method==='DELETE'){if(active||queue.length)return json({error:'A calculation is running. Clear cache after it finishes.'},409);await WebCache.clear();jobs.clear();}
    return {...await WebCache.stats(),busy:!!active||queue.length>0};

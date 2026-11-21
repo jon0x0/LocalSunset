@@ -17,7 +17,7 @@ let resultDirty=true, calculationPending=false, renderedKey='', displayedName=''
 function calculationInput(){return {...coordinates(),date:$('date').value,radius:Number($('radius').value),zoom:Number($('zoom').value),source:$('source').value};}
 function updateGroundLookup(){
  const output=$('groundLookup');if(!output)return;
- if(!result||!result.terrain||resultDirty){output.textContent='Trace this location to look up ground elevation.';return;}
+ if(!result||!result.terrain||resultDirty){output.textContent='Apply this location to look up ground elevation.';return;}
  const terrain=result.terrain,format=value=>Number(value).toFixed(1)+' m ('+Math.round(Number(value)*3.280839895)+' ft)';
  output.textContent='Looked-up ground: '+format(terrain.dem_ground_m??terrain.ground_m)+'. '+(terrain.ground_override_m!=null?'Your ground: '+format(terrain.ground_m)+'. ':'')+'Observer elevation: '+format(terrain.observer_m)+'.'+(terrain.ground_override_m!=null?' Nearby DEM ignored within '+terrain.near_m+' m.':'');
 }
@@ -27,10 +27,10 @@ function updatePlaceTitle(){
  let notice=$('sceneUpdate');
  if(!notice){notice=document.createElement('div');notice.id='sceneUpdate';notice.setAttribute('role','status');$('view').parentElement.append(notice);}
  notice.hidden=!resultDirty||!result;
- notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting trace')+'. Still showing: '+displayedName+'.':'';
+ notice.textContent=resultDirty&&result?'Selected: '+currentName+' - '+(calculationPending?'calculating':'awaiting Apply location')+'. Still showing: '+displayedName+'.':'';
 }
 function invalidateResult(){locationGeneration++;resultDirty=true;if(typeof idleUpcoming!=='undefined')idleUpcoming=null;updateGroundLookup();if(controllerPage)$('syncStatus').textContent='Selected location needs a new calculation. Current scene retained.';}
-for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${$('lat').value}°, ${$('lon').value}°`;updatePlaceTitle();}status('Settings changed. Trace sunrise and sunset to update the view.');});
+for(const id of ['lat','lon','height','groundOverride','groundClearance','date','radius','zoom','source'])$(id).addEventListener('input',()=>{invalidateResult();if(id==='lat'||id==='lon'){if($('groundOverride'))$('groundOverride').value='';$('saved').value='';$('search').value='';currentName=`${$('lat').value}°, ${$('lon').value}°`;updatePlaceTitle();}status('Settings changed. Apply location to update the view.');});
 const initialDate=new Date(); $('date').value=[initialDate.getFullYear(),String(initialDate.getMonth()+1).padStart(2,'0'),String(initialDate.getDate()).padStart(2,'0')].join('-');
 async function api(url, options={}) {const r=await fetch(url,options);const data=await r.json();if(!r.ok){const error=Error(data.error||`Request failed (${r.status})`);error.status=r.status;throw error;}return data;}
 const jsonOptions = data => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
@@ -82,7 +82,7 @@ $('useLocation').onclick=()=>{
   $('saved').value='';$('zip').value='';$('zipCity').value='';$('results').replaceChildren();
   currentName=`${latitude}°, ${longitude}°`;$('search').value=currentName;updatePlaceTitle();
   message('Device location selected'+(Number.isFinite(accuracy)?' · reported accuracy ±'+Math.ceil(accuracy)+' m':'')+'. High accuracy requested; GPS, Wi-Fi, cellular or other sources are chosen by your device.');
-  status('Device location selected. Review the coordinates, then trace sunrise and sunset. Save it if you want to keep it as a named location.');
+  status('Device location selected. Review the coordinates, then apply the location. Save it if you want to keep it as a named location.');
  },fail,{enableHighAccuracy:true,maximumAge:0,timeout:30000});}catch(error){fail(error);}
 };
 function trailingZip(query){const match=query.match(/(?:^|[\s,])(\d{5}(?:-\d{4})?)(?:\s*,?\s*(?:USA|US|United States))?\s*$/i);return match?match[1]:'';}
@@ -99,37 +99,47 @@ async function fillZipCity(){
  }catch(err){if(serial===zipRequest)$('zipHint').textContent=err.message;}
 }
 $('search').addEventListener('input',()=>{searchRequest++;$('results').replaceChildren();if(zipFromMatch){zipFromMatch=false;zipRequest++;clearTimeout(zipTimer);$('zip').value='';$('zipCity').value='';$('zipHint').textContent='Street + ZIP is enough for US addresses; no city required.';}});
-$('zip').addEventListener('input',()=>{zipFromMatch=false;clearTimeout(zipTimer);zipRequest++;$('zipCity').value='';zipTimer=setTimeout(fillZipCity,500);});
-$('searchForm').addEventListener('submit',async e=>{
- e.preventDefault();
- const results=$('results'), query=$('search').value.trim(), serial=++searchRequest;
+$('zip').addEventListener('input',()=>{searchRequest++;$('results').replaceChildren();zipFromMatch=false;clearTimeout(zipTimer);zipRequest++;$('zipCity').value='';zipTimer=setTimeout(fillZipCity,500);});
+let applyingLocation=false;
+async function applyLocation(){
+ if(calculationPending||applyingLocation)return;
+ const query=$('search').value.trim(),zip=$('zip').value.trim();
+ if(!query||(query===currentName&&(!zip||zipFromMatch))){if($('calculateForm').reportValidity())return calculateCurrent();return;}
+ if(!$('search').reportValidity()||!$('zip').reportValidity())return;
+ applyingLocation=true;$('calculate').disabled=true;$('calculate').textContent='Finding…';
+ try{await lookupAndApplyLocation();}finally{applyingLocation=false;$('calculate').disabled=calculationPending;if(!calculationPending)$('calculate').textContent='Apply location';}
+}
+async function lookupAndApplyLocation(){
+ const results=$('results'), query=$('search').value.trim(), serial=++searchRequest,generation=locationGeneration;
  results.replaceChildren();
  const zip=$('zip').value.trim();
  status('Looking up this address…');
  try{
   const rows=await api('/api/search?q='+encodeURIComponent(query)+(zip?'&zip='+encodeURIComponent(zip):''));
-  if(serial!==searchRequest)return;
+  if(serial!==searchRequest||generation!==locationGeneration)return;
   if(!rows.length){status('No matching street address found. Check the street number and ZIP, or enter coordinates.');return;}
+  const select=async row=>{
+   invalidateResult();$('saved').value='';zipRequest++;clearTimeout(zipTimer);
+   $('lat').value=row.lat;$('lon').value=row.lon;if($('groundOverride'))$('groundOverride').value='';
+   currentName=row.name;$('search').value=row.name;
+   $('zip').value=row.postcode&&/^\d{5}(?:-\d{4})?$/.test(row.postcode)?row.postcode:'';
+   zipFromMatch=Boolean($('zip').value);$('zipCity').value=[row.city,row.state].filter(Boolean).join(', ');
+   $('zipHint').textContent=row.source||'Address selected.';updatePlaceTitle();results.replaceChildren();
+   if($('calculateForm').reportValidity())await calculateCurrent();
+  };
+  if(rows.length===1){await select(rows[0]);return;}
   for(const row of rows){
    const b=document.createElement('button');b.className='result';b.type='button';
    b.append(Object.assign(document.createElement('span'),{textContent:row.name}));
    if(row.source)b.append(Object.assign(document.createElement('small'),{textContent:row.source}));
-   b.onclick=()=>{
-    invalidateResult();$('saved').value='';zipRequest++;clearTimeout(zipTimer);
-    $('lat').value=row.lat;$('lon').value=row.lon;if($('groundOverride'))$('groundOverride').value='';
-    currentName=row.name;$('search').value=row.name;
-    $('zip').value=row.postcode&&/^\d{5}(?:-\d{4})?$/.test(row.postcode)?row.postcode:'';
-    zipFromMatch=Boolean($('zip').value);
-    $('zipCity').value=[row.city,row.state].filter(Boolean).join(', ');
-    $('zipHint').textContent=row.source||'Address selected.';
-    updatePlaceTitle();results.replaceChildren();
-    status('Location selected. Trace sunrise and sunset to load its terrain.');
-   };
-   results.append(b);
+   b.onclick=()=>select(row);results.append(b);
   }
-  status('Select the matching address. City and state are included automatically.');
+  status('Select a matching address to apply it. City and state are included automatically.');
  }catch(err){if(serial===searchRequest)status(err.message);}
-});
+ }
+$('calculate').onclick=applyLocation;
+$('searchForm').addEventListener('submit',e=>{e.preventDefault();applyLocation();});
+$('searchForm').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLocation();}});
 async function calculateCurrent(){
  if(calculationPending)return false;
  invalidateResult();calculationPending=true;
@@ -156,7 +166,7 @@ async function calculateCurrent(){
  }catch(err){calculationPending=false;status((result?'Update failed; keeping the current scene. ':'')+err.message);return false;}
  finally{calculationPending=false;const progress=$('terrainProgress');if(progress){progress.hidden=true;progress.textContent='';}updatePlaceTitle();for(const el of document.querySelectorAll('aside input,aside select,aside button'))el.disabled=false;queueHDMI();}
 }
-$('calculateForm').addEventListener('submit',e=>{e.preventDefault();calculateCurrent();});
+$('calculateForm').addEventListener('submit',e=>{e.preventDefault();applyLocation();});
 function showResult(preserveView=false){syncEventControls();updateCountdown();const terrain=result.terrain;$('placeholder').style.display='none';$('time').disabled=false;$('time').max=(result.timeline.at(-1).t-result.timeline[0].t)/1000;$('zone').textContent=result.timezone;$('ground').replaceChildren(document.createTextNode(terrain.ground_m.toFixed(1)+' '),Object.assign(document.createElement('em'),{textContent:'m'}));$('resolution').replaceChildren(document.createTextNode(terrain.pixel_m+' '),Object.assign(document.createElement('em'),{textContent:'m'}));$('sources').textContent=terrain.sources.map(s=>s==='usgs'?'USGS 3DEP':s==='global'?'AWS Terrarium':s).join(' + ')+` · ${terrain.radius_km} km`;$('sunrise').textContent=result.sunrise?formatTime(Date.parse(result.sunrise.utc)):'No sunrise';$('sunriseDate').textContent=result.sunrise?localDate(Date.parse(result.sunrise.utc)):result.status.replaceAll('_',' ');$('sunset').textContent=result.sunset?formatTime(Date.parse(result.sunset.utc)):'No sunset';$('sunsetDate').textContent=result.sunset?localDate(Date.parse(result.sunset.utc)):result.status.replaceAll('_',' ');$('rangeStart').textContent=formatClock(result.timeline[0].t,result.timezone,false);$('rangeEnd').textContent=formatClock(result.timeline.at(-1).t,result.timezone,false);$('assumptions').replaceChildren(...result.assumptions.map(s=>Object.assign(document.createElement('li'),{textContent:s})));$('events').replaceChildren(...result.events.map(e=>Object.assign(document.createElement('span'),{textContent:`${e.kind==='appearance'?'Visible':'Hidden'} · ${formatTime(Date.parse(e.utc))}`})));if(preserveView){setTime(currentTime,true);updatePlay();}else selectEventView();}
 $('time').addEventListener('input',()=>{playing=false;updatePlay();setTime(result.timeline[0].t+Number($('time').value)*1000);});
 $('back').onclick=()=>setTime(simulationNow()-60000);$('forward').onclick=()=>setTime(simulationNow()+60000);$('jump').onclick=()=>{const event=selectedEvent();if(event)setTime(Date.parse(event.utc));};

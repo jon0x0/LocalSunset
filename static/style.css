@@ -39,3 +39,5 @@ body.projector[data-clock12="true"] .projector-hud .projection-countdown>strong{
 .project-source{display:inline-block;align-self:flex-start;margin-top:14px;padding:9px 12px;border:1px solid #8b9a77;border-radius:5px;color:#f3d3a0;font-size:13px;font-weight:600;text-decoration:none}.project-source:hover{background:#30402b}
 
 .elevation-lookup{font-size:13px;color:#f0d4a7;border-left:3px solid #d6ba89;padding:8px 10px;background:#223023;border-radius:3px;line-height:1.6}
+
+.searchbox .apply-location{flex:0 0 auto;max-width:92px;padding:6px 10px;background:#d5bc91;color:#17251c;border-radius:0 4px 4px 0;font-size:11px;font-weight:700;line-height:1.3}.searchbox .apply-location:disabled{opacity:.6;cursor:wait}.searchbox input{flex:1 1 auto;min-width:0}
