@@ -39,7 +39,8 @@ const CandidateAtmosphere=(()=>{
   for(const [amount,height,opacity] of [[w.high,10,.4],[w.mid,5,.6],[w.low,2,.85]]){
    if(amount===null)continue;
    const pattern=(Math.sin(az*.12+height)+Math.sin(alt*.32+az*.05+height*3)+Math.sin(az*.29-alt*.16))/3;
-   const mask=Math.max(0,Math.min(1,(amount/100-(pattern*.45+.5))*8+.5))*opacity;
+   const overcast=Math.max(0,Math.min(1,(amount-90)/10));
+   const mask=Math.max(0,Math.min(1,(amount/100-(pattern*.45+.5))*8+.5))*(opacity+(.98-opacity)*overcast);
    const dip=Math.acos(6371/(6371+height))*180/Math.PI,lit=Math.max(0,Math.min(1,(sunAlt+dip+1)/3)),warm=Math.exp(-Math.pow((sunAlt+1)/5,2));
    const lighting=enhanced&&optics().spectral?SpectralSky.cloudLight(sunAlt,height*1000,aod(),optics()):null;
    out=out.map((v,i)=>v*(1-mask)+mask*(lighting?lighting[i]:(.004+lit*[.2,.15,.1][i]*(1+warm*[.8,-.1,-.6][i]))));

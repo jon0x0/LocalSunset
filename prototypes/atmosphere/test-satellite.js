@@ -27,3 +27,12 @@ console.log('Observed clouds retained when wind coverage is missing');
 
 assert.equal(G.matchesEvent(d,{...evening,time:evening.time+5400000},5400000),true);
 assert.equal(G.matchesEvent(d,{...evening,time:evening.time+5400001},5400000),false);
+
+// Nearby overcast must occlude a distant observed clearing, including low rays.
+const edge={bounds:[-106,39,-102,41],width:81,height:2,cells:Array.from({length:162},(_,i)=>i%81<25?[1,4500,8]:[0,null,null])};
+assert.equal(G.lookup(edge,40,-105.5,2200,1,90,1).cover,1);
+assert.equal(G.lookup(edge,40,-105.5,2200,90,90,.2).cover,1,'thin overhead layer is not skipped');
+const clear={...edge,cells:edge.cells.map(()=>[0,null,null])};
+assert.equal(G.lookup(clear,40,-105.5,2200,1,90,1),null,'outside downloaded region is unknown, not clear');
+assert.equal(G.lookup(clear,40,-105.5,2200,90,90,1).cover,0,'known clear overhead stays clear');
+console.log('Near-cloud occlusion, thin overhead layers and unknown distant coverage passed');
