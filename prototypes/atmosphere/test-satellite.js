@@ -24,3 +24,6 @@ const C=require('./cloud-motion.js');
 const observed=G.lookup(d,36,-101,2000,90,0,1,null,(height,lat,lon)=>C.backtrace(null,height,lat,lon,0,600000)||[lat,lon]);
 assert.equal(observed.cover,1);assert.equal(observed.top,8000);
 console.log('Observed clouds retained when wind coverage is missing');
+
+assert.equal(G.matchesEvent(d,{...evening,time:evening.time+5400000},5400000),true);
+assert.equal(G.matchesEvent(d,{...evening,time:evening.time+5400001},5400000),false);

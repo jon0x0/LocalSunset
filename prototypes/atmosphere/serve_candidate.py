@@ -31,7 +31,7 @@ class Handler(SimpleHTTPRequestHandler):
     with SATELLITE_LOCK:
      if key not in SATELLITE_CACHE:
       data=prepare(lat,lon,target)
-      if abs((datetime.fromisoformat(data['observedAt'])-target).total_seconds())>900:raise ValueError('No satellite observation within 15 minutes of requested time')
+      if abs((datetime.fromisoformat(data['observedAt'])-target).total_seconds())>5400:raise ValueError('No satellite observation within 90 minutes of requested time')
       if len(SATELLITE_CACHE)>=8:SATELLITE_CACHE.pop(next(iter(SATELLITE_CACHE)))
       SATELLITE_CACHE[key]=data
      payload=json.dumps(SATELLITE_CACHE[key],separators=(',',':')).encode()

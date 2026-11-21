@@ -20,6 +20,6 @@
   return d;
  }
  function cell(d,lat,lon){const [west,south,east,north]=d.bounds;if(lat<south||lat>north||lon<west||lon>east)return null;const x=Math.round((lon-west)/(east-west)*(d.width-1)),y=Math.round((lat-south)/(north-south)*(d.height-1));return d.cells[y*d.width+x];}
- function matchesEvent(d,event){return !!event&&Number.isFinite(event.time)&&Math.abs(event.time-Date.parse(d.observedAt))<=3600000&&!!cell(d,event.lat,event.lon);}
+ function matchesEvent(d,event,maxAge=3600000){return !!event&&Number.isFinite(event.time)&&Math.abs(event.time-Date.parse(d.observedAt))<=maxAge&&!!cell(d,event.lat,event.lon);}
  const api={validate,cell,intersection,lookup,matchesEvent};root.SatelliteCloudGeometry=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

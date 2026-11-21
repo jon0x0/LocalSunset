@@ -6,7 +6,7 @@
 
  }
  function backtrace(profile,height,lat,lon,observed,time){
-  const dt=(time-observed)/1000;if(dt<0||dt>1800||!profile||Math.abs(profile.time-observed)>5400000)return null;
+  const dt=(time-observed)/1000;if(dt<0||dt>5400||!profile||Math.abs(profile.time-observed)>5400000)return null;
   if(Math.hypot((lat-profile.lat)*111.2,(lon-profile.lon)*111.2*Math.cos(lat*Math.PI/180))>50)return null;
   const wind=windAt(profile,height);if(!wind)return null;const sourceLat=lat-wind[1]*dt/111200,sourceLon=lon-wind[0]*dt/(111200*Math.max(.1,Math.cos(lat*Math.PI/180)));return [sourceLat,sourceLon];
  }

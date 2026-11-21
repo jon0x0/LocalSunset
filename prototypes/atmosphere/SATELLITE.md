@@ -157,3 +157,10 @@ atmospheric background is rendered while cloud data is pending, preventing a
 night frame from persisting into sunrise. Loading text remains visible in
 projector sky-only mode. Pi deployments expose ephemeral render-health metrics
 (time, solar altitude, mean pixel level and loading state), without coordinates.
+
+Projection horizon is now 90 minutes. Views beyond 30 minutes are labeled extended,
+reduced-confidence wind projections. Regional download freshness permits 90 minutes
+of delivery delay, while cloud-mask/top/optical-depth coherence stays at 15 minutes.
+Base-profile matching is referenced to observation time, so transport does not
+incorrectly invalidate an otherwise aligned base estimate. Still-image mode remains
+limited to 60 minutes. GOES CONUS scan cadence is nominally five minutes, not hourly.
