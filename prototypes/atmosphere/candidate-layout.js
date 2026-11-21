@@ -18,6 +18,7 @@
  const workbench=document.createElement('section');workbench.className='sky-workbench';workbench.setAttribute('aria-label','Sky preview and quick controls');
  scene.before(workbench);workbench.append(scene);
  const dock=document.createElement('div');dock.className='compact-dock';workbench.append(dock);
+ const scrollHandle=document.createElement('button');scrollHandle.type='button';scrollHandle.className='sky-page-scroll';scrollHandle.textContent='↕ Scroll page';scrollHandle.setAttribute('aria-label','Swipe here to scroll the page, or tap to go below the sky');scrollHandle.title='Swipe up or down here to scroll the page. Tap to reach the controls below.';scene.append(scrollHandle);scrollHandle.onclick=()=>(document.getElementById('candidateLocations')||dock).scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
  const transport=document.querySelector('.transport'),timeline=document.getElementById('colorTime');
  dock.append(transport);const dockWindow=document.createElement('p');dockWindow.id='dockBestWindow';transport.querySelector('.time-row').after(dockWindow);const dockCloud=document.createElement('p');dockCloud.id='dockCloudEstimate';dockCloud.hidden=true;dockWindow.after(dockCloud);
  const fullDay=document.createElement('details');fullDay.className='full-day-controls';fullDay.innerHTML='<summary>Full-day timeline</summary>';
