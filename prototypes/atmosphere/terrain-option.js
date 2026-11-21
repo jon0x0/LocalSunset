@@ -20,5 +20,5 @@ const TerrainOption=(()=>{
   const result=BrowserSolar.calculate(input.lat,input.lon,input.date,tzlookup(input.lat,input.lon),terrain);
   result.assumptions=['Surrounding terrain disabled; point ground elevation is still used.','Unobstructed astronomical horizon; local terrain event predictions are unavailable.','Observer elevation uses measured/cached or manually entered ground elevation plus height above ground.'];return result;
  }
- return {get enabled(){return enabled;},set,calculate,resolveGround,remember};
+ return {get cacheBusy(){return pending.size>0;},get enabled(){return enabled;},set,calculate,resolveGround,remember};
 })();

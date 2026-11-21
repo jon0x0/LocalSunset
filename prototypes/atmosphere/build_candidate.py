@@ -6,7 +6,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 OUT = HERE / 'candidate'
 OUT.mkdir(exist_ok=True)
-shared = ['app.js','idle-mode.js','cache-controls.js','celestial-sky.js','countdown.js','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md']
+shared = ['location-manager.js','app.js','idle-mode.js','cache-controls.js','celestial-sky.js','countdown.js','keystone.js','scene-effects.js','star-catalog.js','style.css','THIRD-PARTY.md','vendor/astronomy.browser.min.js','vendor/ASTRONOMY-LICENSE.md']
 owned = ['browser-api.js','cache-db.js','terrain-core.js','solar-core.js','terrain-worker.js','vendor/geotiff.js','vendor/proj4.js','vendor/tz.js','BROWSER-THIRD-PARTY.md','vendor/GEOTIFF-LICENSE.md','vendor/PROJ4-LICENSE.md','vendor/TZ-LOOKUP-LICENSE.md']
 for group, folder in [(shared, 'static'), (owned, 'web')]:
  for name in group:

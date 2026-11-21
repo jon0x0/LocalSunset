@@ -71,5 +71,5 @@ const TerrainLighting=(()=>{
   }ctx.restore();target.drawImage(surface,0,0,w,h);
   message.textContent='Sun '+sun.alt.toFixed(2)+'° · terrain sunline ready · '+mesh.source+' · 125 m near / 690 m outer grid, 60 km wide · '+(cloudSun?'satellite sunlight paths / forecast cloud fallback':'clear-sky direct sunlight comparison')+'. Mountain shadows stop at mesh boundary.';
  }
- return {render};
+ return {render,get cacheBusy(){return !!pending;}};
 })();

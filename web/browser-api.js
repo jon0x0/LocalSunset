@@ -30,6 +30,16 @@
   if(path.startsWith('/api/zip/'))return zip(decodeURIComponent(path.slice(9)));
   if(path==='/api/search')return search(url.searchParams.get('q')||'',url.searchParams.get('zip')||'');
   if(path==='/api/locations'){
+   if(method==='PUT'){
+    if(!Array.isArray(body?.expected)||!Array.isArray(body?.locations))throw Error('Provide the saved-place snapshot and edited locations.');
+    if(JSON.stringify(body.expected)!==JSON.stringify(get('locations',[])))return json({error:'Saved places changed elsewhere. Reopen Manage to load the latest list before saving.'},409);
+    const names=new Set(),rows=body.locations.map(p=>{
+     if(!p||typeof p.name!=='string'||!p.name.trim()||p.name.trim().length>120)throw Error('Each place needs a name of at most 120 characters.');
+     const name=p.name.trim();if(names.has(name))throw Error('Saved place names must be unique.');names.add(name);zone(p.lat,p.lon);
+     if(!Number.isFinite(p.height)||p.height<0||p.height>10000)throw Error('Height must be between 0 and 10000 meters.');
+     const item={...p,name};if(p.ground==null){delete item.ground;delete item.near;}else{if(!Number.isFinite(p.ground)||p.ground< -12000||p.ground>10000)throw Error('Invalid ground elevation override.');item.near=p.near??100;if(!Number.isFinite(item.near)||item.near<50||item.near>1000)throw Error('DEM exclusion distance must be between 50 and 1000 meters.');}return item;
+    });return set('locations',rows);
+   }
    const rows=get('locations',[]);if(method==='POST'){if(!body.name||body.name.length>120)throw Error('Give the location a name.');zone(body.lat,body.lon);return set('locations',[...rows.filter(p=>p.name!==body.name),body]);}return rows;
   }
   if(path.startsWith('/api/locations/')&&method==='DELETE')return set('locations',get('locations',[]).filter(p=>p.name!==decodeURIComponent(path.slice('/api/locations/'.length))));
@@ -41,8 +51,8 @@
   }
   if(path.startsWith('/api/jobs/')){const result=jobs.get(path.slice('/api/jobs/'.length));if(!result)throw Error('Browser calculation not found. Apply this location again.');return result;}
   if(path==='/api/cache'){
-   if(method==='DELETE'){if(active||queue.length)return json({error:'A calculation is running. Clear cache after it finishes.'},409);await WebCache.clear();jobs.clear();}
-   return {...await WebCache.stats(),busy:!!active||queue.length>0};
+   if(method==='DELETE'){if(active||queue.length)return json({error:'A calculation is running. Clear cache after it finishes.'},409);await WebCache.clearTerrain();jobs.clear();if(worker){worker.terminate();worker=null;}}
+   return {...await WebCache.terrainStats(),busy:!!active||queue.length>0};
   }
   if(path==='/api/scene-style'){const state=get('style',{revision:0,rays:true,trees:false,strength:65,sky_only:false,clock12:false,sky_labels:false});return method==='PUT'?set('style',{...body,revision:state.revision+1}):state;}
   if(path==='/api/projector-calibration'){
@@ -58,6 +68,6 @@
   return json({error:'This operation is not available in the browser edition.'},404);
  }
  window.fetch=async(input,options={})=>{const url=new URL(typeof input==='string'?input:input.url,document.baseURI);if(url.origin!==location.origin||!url.pathname.startsWith('/api/'))return nativeFetch(input,options);try{const result=await api(url,options);return result instanceof Response?result:json(result);}catch(error){return json({error:error.message||String(error)},400);}};
- window.addEventListener('DOMContentLoaded',()=>{document.body.dataset.browserEdition='true';document.getElementById('syncHDMI').checked=false;document.querySelector('.hdmi-sync').hidden=true;document.getElementById('projectLocation').hidden=true;document.querySelector('.network-settings:not(.scene-settings)').hidden=true;const note=document.createElement('p');note.className='hint browser-edition-note';note.textContent='Browser edition - calculations and saved places stay on this device.';document.querySelector('aside .intro').after(note);});
+ window.addEventListener('DOMContentLoaded',()=>{document.body.dataset.browserEdition='true';document.getElementById('syncHDMI').checked=false;document.querySelector('.hdmi-sync').hidden=true;document.getElementById('projectLocation').hidden=true;document.getElementById('remoteEvent').closest('details').hidden=true;const note=document.createElement('p');note.className='hint browser-edition-note';note.textContent='Browser edition - calculations and saved places stay on this device.';document.querySelector('aside .intro').after(note);});
  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 })();

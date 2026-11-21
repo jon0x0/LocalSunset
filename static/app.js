@@ -10,9 +10,24 @@ const $ = id => document.getElementById(id);
 let viewAzimuth=270, panDrag=null;
 let VIEW_FOV=75;
 function setFieldOfView(value){const next=Number(value);if(Number.isFinite(next)&&next>=30&&next<=120&&next!==VIEW_FOV){VIEW_FOV=next;draw();}}
-let result=null, currentTime=0, playing=false, lastFrame=0, saved=[], currentName='Choose a location';
+let result=null, currentTime=0, playing=false, lastFrame=0, saved=[], terrainSelectionRestored=false, currentName='Choose a location';
 let cacheWritesEnabled=true;
-function forgetBrowserCache(){cacheWritesEnabled=false;for(const key of Object.keys(localStorage))if(key.startsWith('localsunset.'))localStorage.removeItem(key);}
+function forgetBrowserCache(){cacheWritesEnabled=false;for(const key of Object.keys(localStorage))if(key==='localsunset.lastScene.v1'||key==='localsunset.lastView.v1')localStorage.removeItem(key);}
+// Remove persisted terrain payloads while retaining the current view in RAM and
+// the selected location metadata needed to rebuild it after a reload.
+function terrainSceneCache(clear=false){
+ let files=0,bytes=0;const size=value=>new TextEncoder().encode(value||'').length;
+ for(const key of Object.keys(localStorage)){
+  if(!key.startsWith('localsunset.'))continue;
+  const ground=key.includes('.ground.v1.'),scene=key==='localsunset.lastScene.v1';if(!ground&&!scene)continue;
+  const raw=localStorage.getItem(key);let replacement=null;
+  if(scene){try{const old=JSON.parse(raw);if(!old.result)continue;const {result:ignored,...metadata}=old;if(typeof renderedKey!=='undefined'&&old.key===renderedKey){metadata.time=currentTime;metadata.azimuth=viewAzimuth;metadata.event=$('eventMode').value;metadata.live=realTimeView;}replacement=JSON.stringify(metadata);}catch(e){}}
+  files++;bytes+=Math.max(0,size(raw)-size(replacement));
+  if(clear){if(replacement)localStorage.setItem(key,replacement);else localStorage.removeItem(key);}
+ }
+ if(clear)cacheWritesEnabled=false;return {files,bytes};
+}
+
 let resultDirty=true, calculationPending=false, renderedKey='', displayedName='';
 function calculationInput(){return {...coordinates(),date:$('date').value,radius:Number($('radius').value),zoom:Number($('zoom').value),source:$('source').value};}
 function updateGroundLookup(){
@@ -568,7 +583,9 @@ function persistView(){
 function restoreScene(){
  try{
   const cached=JSON.parse(localStorage.getItem('localsunset.lastScene.v1')||'null');
-  if(!cached||cached.version!==1||!cached.result||!cached.result.terrain||!Array.isArray(cached.result.timeline)||cached.result.timeline.length<2)return false;
+  if(!cached||cached.version!==1)return false;
+  if(!cached.result){const input=JSON.parse(cached.key);if(!Number.isFinite(input.lat)||!Number.isFinite(input.lon))return false;for(const key of ['lat','lon','height','date','radius','zoom','source'])$(key).value=input[key];if($('groundOverride'))$('groundOverride').value=input.ground??'';if($('groundClearance'))$('groundClearance').value=input.near??100;currentName=cached.name;$('search').value=currentName;$('eventMode').value=cached.event==='sunrise'?'sunrise':'sunset';currentTime=cached.time;viewAzimuth=cached.azimuth;realtimeRequested=cached.live===true;terrainSelectionRestored=true;return false;}
+  if(!cached.result.terrain||!Array.isArray(cached.result.timeline)||cached.result.timeline.length<2)return false;
   const input=JSON.parse(cached.key);
   if(!input||!Number.isFinite(input.lat)||!Number.isFinite(input.lon))return false;
   const view=JSON.parse(localStorage.getItem('localsunset.lastView.v1')||'null');

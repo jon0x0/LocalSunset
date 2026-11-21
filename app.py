@@ -409,10 +409,35 @@ def zip_lookup(zip_code):
         return jsonify(error='ZIP city lookup is temporarily unavailable. Street address search still works.'),502
 
 
-@app.route('/api/locations', methods=['GET','POST'])
+@app.route('/api/locations', methods=['GET','POST','PUT'])
 def locations():
     with lock:
         saved = json.loads(locations_path.read_text('utf-8')) if locations_path.exists() else []
+        if request.method == 'PUT':
+            try:
+                data=request.get_json()
+                if not isinstance(data,dict) or not isinstance(data.get('expected'),list) or not isinstance(data.get('locations'),list):
+                    raise ValueError('Provide the saved-place snapshot and edited locations.')
+                if data['expected'] != saved:
+                    return jsonify(error='Saved places changed elsewhere. Reopen Manage to load the latest list before saving.'),409
+                edited=[]
+                for row in data['locations']:
+                    if not isinstance(row,dict) or not isinstance(row.get('name'),str) or not row['name'].strip() or len(row['name'].strip())>120:
+                        raise ValueError('Each place needs a name of at most 120 characters.')
+                    item=dict(row,name=row['name'].strip(),lat=number(row,'lat',-90,90),lon=number(row,'lon',-180,180),height=number(row,'height',0,10000))
+                    if row.get('ground') is not None:
+                        item['ground']=number(row,'ground',-12000,10000)
+                        item['near']=number(row,'near',50,1000) if row.get('near') is not None else 100
+                    else:
+                        item.pop('ground',None);item.pop('near',None)
+                    if any(p['name']==item['name'] for p in edited):
+                        raise ValueError('Saved place names must be unique.')
+                    edited.append(item)
+                temp=locations_path.with_suffix('.tmp')
+                temp.write_text(json.dumps(edited,indent=2),encoding='utf-8');temp.replace(locations_path)
+                saved=edited
+            except (ValueError,KeyError,TypeError) as exc:
+                return jsonify(error=str(exc)),400
         if request.method == 'POST':
             try:
                 data = request.get_json()

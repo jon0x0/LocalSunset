@@ -244,6 +244,7 @@ const CandidateAtmosphere=(()=>{
 })();
 
 async function initializeCandidate(){
+ if(!result&&terrainSelectionRestored){if(realtimeRequested)await calculateToday();else await calculateCurrent();CandidateAtmosphere.refresh();return;}
  if(!TerrainOption.enabled&&!result){if(!$('lat').value){$('lat').value=39.6888;$('lon').value=-105.156;$('height').value=2;$('date').value=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());currentName=displayedName='ZIP 80228 · approximate area center';}await calculateCurrent();CandidateAtmosphere.refresh();return;}
  if(result){CandidateAtmosphere.invalidate();draw();CandidateAtmosphere.refresh();calculateCurrent();return;}
  try{
@@ -256,9 +257,6 @@ async function initializeCandidate(){
   showResult();updatePlaceTitle();persistScene();CandidateAtmosphere.refresh();status('ZIP 80228 test terrain ready · modeled atmosphere · no live weather.');
  }catch(e){status(e.message);}
 }
-// Name entry avoids modal dialogs and still uses the original saved-place API.
-const saveName=document.createElement('input');saveName.id='candidateSaveName';saveName.placeholder='Name for saved location';saveName.setAttribute('aria-label','Name for saved location');$('saved').before(saveName);
-$('save').onclick=async()=>{try{const name=saveName.value.trim()||currentName;await api('/api/locations',jsonOptions({name,...coordinates()}));await loadSaved();status('Location saved in this candidate browser.');}catch(e){status(e.message);}};
 $('candidateTerrainEnabled').onchange=async()=>{
  if(calculationPending){$('candidateTerrainEnabled').checked=TerrainOption.enabled;return;}
  TerrainOption.set($('candidateTerrainEnabled').checked);CandidateAtmosphere.invalidate();syncTerrainVisibility();
