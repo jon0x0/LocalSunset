@@ -238,23 +238,10 @@ def projector_calibration():
 
 @app.get('/api/projector-calibration/events')
 def calibration_events():
-    # The Pi kiosk receives updates directly; polling remains a reconnect fallback.
-    def events():
-        previous = -1
-        while True:
-            with calibration_changed:
-                state = calibration_live.get(str(calibration_path))
-                if state is None:
-                    state = json.loads(calibration_path.read_text(encoding='utf-8')) if calibration_path.exists() else dict(
-                        revision=0, enabled=True, grid=False, fov=75,
-                        corners={name: dict(x=0, y=0) for name in ('tl','tr','br','bl')})
-                if state['revision'] == previous:
-                    calibration_changed.wait(timeout=10)
-                    state = calibration_live.get(str(calibration_path), state)
-                payload = json.dumps(state) if state['revision'] != previous else None
-                previous = state['revision']
-            yield ('data: ' + payload + '\n\n') if payload else ': keepalive\n\n'
-    return Response(events(), mimetype='text/event-stream', headers={'Cache-Control':'no-store', 'X-Accel-Buffering':'no'})
+    # Persistent SSE consumes one Waitress worker per viewer. Enough viewers can
+    # starve the entire four-thread server, including health checks and the kiosk.
+    # 204 stops EventSource reconnects; keystone.js falls back to its existing poll.
+    return Response(status=204)
 
 
 @app.after_request
