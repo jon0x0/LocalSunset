@@ -26,7 +26,7 @@ jobs:
       - name: Audit public source
         run: python tools/audit_public.py
       - name: Verify browser calculations and display regressions
-        run: for test in tests/test_*.js prototypes/atmosphere/test-model.js prototypes/atmosphere/test-peak.js prototypes/atmosphere/test-sky-countdown.js prototypes/atmosphere/test-viewport.js prototypes/atmosphere/test-forecast-refresh.js; do node "$test"; done
+        run: for test in tests/test_*.js prototypes/atmosphere/test-atmosphere-worker.js prototypes/atmosphere/test-satellite-refresh.js prototypes/atmosphere/test-cloud-motion.js prototypes/atmosphere/test-spectral.js prototypes/atmosphere/test-cloud-base.js prototypes/atmosphere/test-satellite.js prototypes/atmosphere/test-model.js prototypes/atmosphere/test-peak.js prototypes/atmosphere/test-sky-countdown.js prototypes/atmosphere/test-viewport.js prototypes/atmosphere/test-forecast-refresh.js; do node "$test"; done
       - name: Build clean browser site and Raspberry Pi source archive
         run: |
           python tools/build_browser.py

@@ -39,3 +39,7 @@ dist/
 *.zip
 *.sqlite*
 *.db
+
+# Local satellite snapshots and raw products
+*.nc
+prototypes/atmosphere/satellite-region.json

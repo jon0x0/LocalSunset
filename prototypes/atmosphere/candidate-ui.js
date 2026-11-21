@@ -22,11 +22,18 @@ const CandidateAtmosphere=(()=>{
   compassMarks.forEach((mark,i)=>{const delta=((i*22.5-focus+540)%360)-180,x=50+delta/fov*100;mark.hidden=x<1||x>99;mark.style.left=x+'%';});
  }
  const aod=()=>Math.max(0,Math.min(3,Number($('candidateAod').value)||0));
+ // Keep the user's visual comparison choices across reloads.
+ const spectralPreference='localsunset.atmosphere.candidate.spectral';
+ try{const saved=JSON.parse(localStorage.getItem(spectralPreference)||'null');$('spectralEnabled').checked=saved?saved.enabled!==false:true;if(saved&&Number.isFinite(saved.ozoneDU))$('ozoneDU').value=Math.max(0,Math.min(600,saved.ozoneDU));}catch(e){}
+ for(const id of ['spectralEnabled','ozoneDU'])$(id).addEventListener('change',()=>{try{localStorage.setItem(spectralPreference,JSON.stringify({enabled:$('spectralEnabled').checked,ozoneDU:Number($('ozoneDU').value)}));}catch(e){}});
+ const optics=()=>({spectral:$('spectralEnabled').checked,ozoneDU:Math.max(0,Math.min(600,Number($('ozoneDU').value)||0))});
  const padding=()=>Math.max(1,Math.min(45,Math.round(Number($('peakPadding').value)||10)));
  const site=()=>renderedKey?JSON.parse(renderedKey):null;
  function geometry(t){const p=site(),o=new Astronomy.Observer(p.lat,p.lon,result.terrain.observer_m),e=Astronomy.Equator('Sun',new Date(t),o,true,true),h=Astronomy.Horizon(new Date(t),o,e.ra,e.dec);return {alt:h.altitude,az:h.azimuth};}
- function weather(t){const p=site();return $('candidateUseWeather').checked&&weatherSite===p.lat+','+p.lon?GlowModel.weatherAt(weatherData,t):null;}
- function clouds(rgb,alt,az,t,sunAlt){
+ let weatherMemo=null,weatherMemoKey='';
+ function weather(t){const p=site(),key=[t,weatherSite,weatherFetchedAt,$('candidateUseWeather').checked,p.lat,p.lon].join('|');if(key!==weatherMemoKey){weatherMemoKey=key;weatherMemo=$('candidateUseWeather').checked&&weatherSite===p.lat+','+p.lon?GlowModel.weatherAt(weatherData,t):null;}return weatherMemo;}
+ function clouds(rgb,alt,az,t,sunAlt,observed=false,enhanced=true){
+  if(observed&&typeof SatelliteClouds!=='undefined'){const p=site(),r=SatelliteClouds.shade(rgb,alt,az,t,sunAlt,p.lat,p.lon,result.terrain.observer_m,aod(),optics());if(r)return r;}
   const w=weather(t);if(!w)return rgb;
   let out=rgb.slice();
   for(const [amount,height,opacity] of [[w.high,10,.4],[w.mid,5,.6],[w.low,2,.85]]){
@@ -34,13 +41,14 @@ const CandidateAtmosphere=(()=>{
    const pattern=(Math.sin(az*.12+height)+Math.sin(alt*.32+az*.05+height*3)+Math.sin(az*.29-alt*.16))/3;
    const mask=Math.max(0,Math.min(1,(amount/100-(pattern*.45+.5))*8+.5))*opacity;
    const dip=Math.acos(6371/(6371+height))*180/Math.PI,lit=Math.max(0,Math.min(1,(sunAlt+dip+1)/3)),warm=Math.exp(-Math.pow((sunAlt+1)/5,2));
-   out=out.map((v,i)=>v*(1-mask)+mask*(.004+lit*[.2,.15,.1][i]*(1+warm*[.8,-.1,-.6][i])));
+   const lighting=enhanced&&optics().spectral?SpectralSky.cloudLight(sunAlt,height*1000,aod(),optics()):null;
+   out=out.map((v,i)=>v*(1-mask)+mask*(lighting?lighting[i]:(.004+lit*[.2,.15,.1][i]*(1+warm*[.8,-.1,-.6][i]))));
   }return out;
  }
  function horizon(az){const p=((az%360+360)%360)/360*result.terrain.horizon.length,i=Math.floor(p);return result.terrain.horizon[i]*(1-(p-i))+result.terrain.horizon[(i+1)%result.terrain.horizon.length]*(p-i);}
  function buildAnalysis(){
   if(!result||!renderedKey)return null;
-  const key=[TerrainOption.enabled,renderedKey,$('eventMode').value,aod(),$('candidateUseWeather').checked,weatherSite,weatherData&&weatherData.hourly.time[0]].join('|');
+  const key=[TerrainOption.enabled,renderedKey,$('eventMode').value,JSON.stringify(optics()),aod(),$('candidateUseWeather').checked,weatherSite,weatherData&&weatherData.hourly.time[0]].join('|');
   if(key===analysisKey)return analysis;
   analysisKey=key;skyKey='';
   const p=site(),mode=$('eventMode').value,o=new Astronomy.Observer(p.lat,p.lon,result.terrain.observer_m),start=result.timeline[0].t,end=result.timeline.at(-1).t;
@@ -52,7 +60,7 @@ const CandidateAtmosphere=(()=>{
   for(let t=Math.max(start,center-3600000);t<=Math.min(end,center+3600000);t+=60000){
    const s=geometry(t),rgb=[0,0,0];
    // Average three visible sky directions; avoid selecting a mountain as sky.
-   for(const offset of [-20,0,20]){const az=s.az+offset,alt=Math.min(80,Math.max(6,horizon(az)+2)),r=clouds(GlowModel.radiance(alt,offset,s.alt,aod(),result.terrain.observer_m),alt,az,t,s.alt);for(let i=0;i<3;i++)rgb[i]+=r[i]/3;}
+   for(const offset of [-20,0,20]){const az=s.az+offset,alt=Math.min(80,Math.max(6,horizon(az)+2)),r=clouds(GlowModel.radiance(alt,offset,s.alt,aod(),result.terrain.observer_m),alt,az,t,s.alt,false,false);for(let i=0;i<3;i++)rgb[i]+=r[i]/3;}
    samples.push({t,rgb,...GlowModel.metrics(rgb)});
   }
   const peak=PeakAnalysis.peak(samples);
@@ -99,7 +107,7 @@ const CandidateAtmosphere=(()=>{
   $('projectionNote').textContent=timing.event?stamp(timing.event.t)+' · '+result.timezone:'No remaining milestones on the selected date.';
   $('projectorBestWindow').textContent='Recommended '+mode+' viewing window: '+(window?stamp(window[0])+' – '+stamp(window[1]):'Unavailable');
  }
- function refresh(){ensureWeather();syncSkyMode();refreshCloudEstimate();
+ function refresh(){if(result&&renderedKey&&typeof SatelliteClouds!=='undefined'){const p=JSON.parse(renderedKey);SatelliteClouds.update(realTimeView?Date.now():currentTime,p.lat,p.lon);}ensureWeather();syncSkyMode();refreshCloudEstimate();
   const a=buildAnalysis();if(!a)return;
   const mode=$('eventMode').value;$('astroLabel').textContent='Astronomical '+mode;$('contactLabel').textContent='Terrain '+mode;
   $('astroTime').textContent=stamp(a.astro);$('contactTime').textContent=stamp(a.contact);
@@ -114,7 +122,7 @@ const CandidateAtmosphere=(()=>{
   $('colorWindow').textContent=a.peak?stamp(window[0])+' – '+stamp(window[1]):'No recommended window';
   const s=a.samples;$('colorTime').disabled=!s.length;$('colorTime').max=Math.max(0,s.length-1);
   if(s.length){$('colorTime').value=Math.max(0,Math.min(s.length-1,Math.round((currentTime-s[0].t)/60000)));$('colorTimeLabel').textContent=stamp(currentTime)+' · '+result.timezone+' · '+stamp(s[0].t)+'–'+stamp(s.at(-1).t)+' event timeline';}
-  $('colorNote').textContent=($('atmosphereEnabled').checked?'Modeled atmosphere':'Production sky rendering')+' · '+(weather(currentTime)?'local cloud estimate':'no live weather')+'. Graph uses the atmospheric model even in production sky mode. Recommended window: peak ±'+padding()+' min, clipped to the sampled range. Peak is uncalibrated.'+(a.peak&&(a.peak===s[0]||a.peak===s.at(-1))?' Peak reaches the sampled boundary; timing may lie outside this range.':'');
+  $('colorNote').textContent=($('atmosphereEnabled').checked?'Modeled atmosphere':'Production sky rendering')+' · '+(weather(currentTime)?'local cloud estimate':'no live weather')+'. Graph uses the atmospheric model even in production sky mode. Recommended window: peak ±'+padding()+' min, clipped to the sampled range. Peak is uncalibrated.'+(optics().spectral?' Spectral twilight affects the sky view; graph/peak retain the original RGB model.':'')+(a.peak&&(a.peak===s[0]||a.peak===s.at(-1))?' Peak reaches the sampled boundary; timing may lie outside this range.':'');
   const show=$('showColorComponents').checked;$('colorComponents').hidden=!show;
   if(show&&s.length){const nearest=s.reduce((a,b)=>Math.abs(a.t-currentTime)<=Math.abs(b.t-currentTime)?a:b),warm=s.reduce((a,b)=>a.warmStrength>=b.warmStrength?a:b);$('componentReadout').textContent='At '+stamp(nearest.t)+': colorfulness '+nearest.colorfulness.toFixed(0)+'/100 · warm strength '+nearest.warmStrength.toFixed(0)+'/100. '+(warm.warmStrength>=1?'Warm-strength maximum: '+stamp(warm.t)+'.':'No appreciable warm-color strength in this interval.');}
   $('skyTimeBadge').textContent=stamp(currentTime)+' · '+result.timezone;
@@ -135,19 +143,42 @@ const CandidateAtmosphere=(()=>{
   g.fillStyle='#cedbe5';g.font='12px system-ui';g.fillText(stamp(s[0].t),4,h-4);g.fillText(stamp(s.at(-1).t),w-g.measureText(stamp(s.at(-1).t)).width-4,h-4);
   c.setAttribute('aria-label',ChartMarkers.markers(a,currentTime,$('eventMode').value,PeakAnalysis.windowAround(s,a.peak,padding())).map(m=>m.label+' '+stamp(m.t)).join('; '));
  }
- function renderSky(ctx,v){syncSkyMode();
-  if(!$('atmosphereEnabled').checked)return;
-  const {sun,focus,scale,base,w,h}=v,s=geometry(Math.round(currentTime/1000)*1000),width=64,height=28;
-  const key=[Math.round(s.alt*5),Math.round(s.az),Math.round(focus),Math.round(w/h*100),Math.round(VIEW_FOV),aod(),result.terrain.observer_m,$('candidateUseWeather').checked,weatherSite,Math.floor(currentTime/60000)].join(':');
-  if(key!==skyKey){
-   skyKey=key;skyImage=document.createElement('canvas');skyImage.width=width;skyImage.height=height;const g=skyImage.getContext('2d'),image=g.createImageData(width,height);
-   for(let y=0;y<height;y++)for(let x=0;x<width;x++){const az=focus+(x/width-.5)*VIEW_FOV,alt=Math.min(90,Math.max(.15,(base-y/height*h)/scale)),relative=((az-s.az+540)%360)-180,rgb=clouds(GlowModel.radiance(alt,relative,s.alt,aod(),result.terrain.observer_m),alt,az,currentTime,s.alt);image.data.set([...GlowModel.display(rgb),255],(y*width+x)*4);}g.putImageData(image,0,0);
-  }
-  ctx.drawImage(skyImage,0,0,w,h);
+ let skyWorker=null,skyPending=null,skyWanted=null,skyCompleted='',skyWorkerFailed=false;
+ const atmosphereScript=document.currentScript?.src||new URL('../candidate-ui.js',location.href).href;
+ function pumpSky(){
+  if(skyPending||!skyWanted||skyWanted.key===skyCompleted||skyWorkerFailed)return;
+  try{
+   if(!skyWorker){skyWorker=new Worker(new URL('atmosphere-worker.js',atmosphereScript));
+    skyWorker.onerror=()=>{skyWorkerFailed=true;skyPending=null;skyWorker.terminate();skyWorker=null;status('Atmosphere worker unavailable; using the base sky. Reload to retry.');};
+    skyWorker.onmessage=({data:message})=>{
+     const p=skyPending;skyPending=null;
+     if(p&&message.key===skyWanted?.key){
+      skyImage=document.createElement('canvas');skyImage.width=p.width;skyImage.height=p.height;
+      const g=skyImage.getContext('2d'),image=g.createImageData(p.width,p.height);
+      for(let y=0;y<p.height;y++)for(let x=0;x<p.width;x++){
+       const az=p.focus+(x/p.width-.5)*p.fov,alt=Math.min(90,Math.max(.15,(p.base-y/p.height*p.h)/p.scale)),i=(y*p.width+x)*3;
+       const rgb=clouds(Array.from(message.pixels.subarray(i,i+3)),alt,az,p.time,p.sunAlt,true);
+       image.data.set([...GlowModel.display(rgb),255],(y*p.width+x)*4);
+      }
+      g.putImageData(image,0,0);skyCompleted=message.key;draw();
+     }
+     pumpSky();
+    };
+   }
+   skyPending=skyWanted;skyWorker.postMessage(skyPending);
+  }catch(e){skyWorkerFailed=true;skyPending=null;status('Atmosphere worker unavailable; using the base sky.');}
  }
- function invalidate(){analysisKey='';skyKey='';}
+ function renderSky(ctx,v){syncSkyMode();
+  if(!$('atmosphereEnabled').checked||document.hidden)return;
+  const p=site();if(typeof SatelliteClouds!=='undefined'){SatelliteClouds.update(currentTime,p.lat,p.lon);if(SatelliteClouds.updating){skyWanted=null;if(skyImage)ctx.drawImage(skyImage,0,0,v.w,v.h);return;}}
+  const {focus,scale,base,w,h}=v,s=geometry(Math.round(currentTime/1000)*1000),width=64,height=28;
+  const key=[JSON.stringify(optics()),renderedKey,Math.round(s.alt*5),Math.round(s.az),Math.round(focus),Math.round(w/h*100),Math.round(base),Math.round(scale),Math.round(VIEW_FOV),aod(),result.terrain.observer_m,$('candidateUseWeather').checked,weatherSite,weatherFetchedAt,Math.floor(currentTime/60000),typeof SatelliteClouds==='undefined'?0:SatelliteClouds.revision].join(':');
+  skyWanted={options:optics(),key,focus,scale,base,w,h,width,height,fov:VIEW_FOV,sunAlt:s.alt,sunAz:s.az,aod:aod(),observer:result.terrain.observer_m,time:currentTime};
+  pumpSky();if(skyImage)ctx.drawImage(skyImage,0,0,w,h);
+ }
+ function invalidate(){analysisKey='';skyKey='';skyCompleted='';skyWanted=null;}
  function requestRefresh(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;refresh();});}
- for(const id of ['candidateAod','atmosphereEnabled'])$(id).addEventListener('change',()=>{invalidate();draw();refresh();});
+ for(const id of ['candidateAod','atmosphereEnabled','spectralEnabled','ozoneDU'])$(id).addEventListener('change',()=>{invalidate();draw();refresh();});
  $('showColorComponents').onchange=refresh;
  $('peakPadding').onchange=()=>{$('peakPadding').value=padding();refresh();};
  $('colorTime').oninput=()=>{const a=buildAnalysis();if(a&&a.samples.length){playing=false;updatePlay();setTime(a.samples[+$('colorTime').value].t);refresh();}};

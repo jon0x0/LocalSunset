@@ -28,6 +28,7 @@ for path in output.rglob('*'):
   text=text.replace("fetch('../terrain-80228.json')","fetch('./terrain-80228.json')")
   text=text.replace('syncTerrainVisibility();initializeCandidate();',"syncTerrainVisibility();(async()=>{await loadSaved();if(!result&&saved.length){$('saved').value=saved[saved.length-1].name;$('saved').onchange();await calculateToday();}else await initializeCandidate();})();")
  if path.name=='index.html':
+  text=text.replace('<body data-browser-edition="true">','<body data-browser-edition="true" data-satellite-provider="browser">')
   text=text.replace('Local Sunset · Atmospheric candidate','Local Sunset').replace('<p class="candidate-banner">LOCAL PROTOTYPE · PRODUCTION UNCHANGED</p>','').replace('LOCAL CANDIDATE · BARE-EARTH TERRAIN','MODELED ATMOSPHERE · BARE-EARTH TERRAIN')
  path.write_text(text,encoding='utf-8')
 files=sorted(p.relative_to(output).as_posix() for p in output.rglob('*') if p.is_file())

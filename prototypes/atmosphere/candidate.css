@@ -292,3 +292,5 @@ body.projector.sky-only.sky-controls-awake,body.projector.sky-only.sky-controls-
  body.projector .sky-gesture-buttons{position:fixed;left:8px;right:8px;bottom:8px!important;width:auto;z-index:20}
  body.projector:not(.sky-only) .projector-hud{padding-bottom:105px}
 }
+
+.satellite-experiment{margin:10px 0;padding:10px;border:1px solid #607462;border-radius:6px}.satellite-experiment label{display:inline-flex;gap:6px;align-items:center;margin:5px;flex-wrap:wrap}.satellite-experiment input[type=number]{width:70px}.satellite-experiment input[type=file]{max-width:220px}.satellite-readout{display:block;color:#b5e4d7;font-size:11px}

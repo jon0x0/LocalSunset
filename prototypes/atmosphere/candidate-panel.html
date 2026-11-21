@@ -6,6 +6,7 @@
   <label>Recommended window ± minutes <input id="peakPadding" type="number" min="1" max="45" step="1" value="10"></label>
   <label>Sky dragging <select id="candidateGesture"><option value="time">Swipe through time</option><option value="pan">Pan panorama</option></select></label>
  </div>
+ <details><summary>Experimental spectral twilight</summary><label class="check-label"><input id="spectralEnabled" type="checkbox"> Spectral sky, ozone &amp; diffuse cloud light</label><label>Assumed ozone column · DU <input id="ozoneDU" type="number" min="0" max="600" step="10" value="300"></label><p class="hint">16 wavelength bands; approximate ozone absorption. Cloud lighting combines direct sunlight and sampled diffuse sky. Clear-air multiple scattering is not included. Sky-view experiment only: the graph and peak timing retain the original RGB model. Compare with the original sky using this checkbox.</p></details>
  <div class="color-times">
   <div><small id="astroLabel">Astronomical sunset</small><strong id="astroTime">—</strong></div>
   <div><small id="contactLabel">Terrain sunset</small><strong id="contactTime">—</strong></div>

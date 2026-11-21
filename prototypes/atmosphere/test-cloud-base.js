@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict'),B=require('./cloud-base.js');
+assert.ok(Math.abs(B.saturation(0)-611.2)<1);assert.ok(Math.abs(B.saturation(-40,true)-12.84)<.1);
+assert.ok(B.iceHumidity(70,-40)>100);assert.equal(B.iceHumidity(70,NaN),null);
+const profile={lat:39.67,lon:-105.24,time:10000000,ground:2000,levels:[{z:1500,rh:100,temperature:5},{z:2500,rh:60,temperature:5},{z:3500,rh:98,temperature:3},{z:4500,rh:98,temperature:1},{z:5500,rh:40,temperature:-10},{z:6500,rh:25,temperature:-35},{z:7500,rh:75,temperature:-40},{z:8500,rh:75,temperature:-45},{z:9500,rh:20,temperature:-50}]};
+const layers=B.layers(profile.levels,profile.ground);assert.ok(layers.some(l=>l.phase==='water'));assert.ok(layers.some(l=>l.phase==='ice'&&!l.ambiguous));
+const estimate=B.estimate(profile,8500,39.67,-105.24,10000000);assert.ok(estimate);assert.equal(estimate.phase,'ice');assert.equal(estimate.thickness,8500-estimate.base);
+assert.equal(B.estimate(profile,6500,39.67,-105.24,10000000),null);assert.equal(B.estimate(profile,8500,40.67,-105.24,10000000),null);assert.equal(B.estimate(profile,8500,39.67,-105.24,20000000),null);
+const mixed={...profile,levels:[{z:3000,rh:30,temperature:-15},{z:3500,rh:90,temperature:-20},{z:4000,rh:90,temperature:-22},{z:4500,rh:30,temperature:-25}]};assert.ok(B.layers(mixed.levels).some(l=>l.ambiguous));assert.equal(B.estimate(mixed,4000,39.67,-105.24,10000000),null);
+assert.equal(B.layers([{z:2500,rh:100}]).length,0);assert.equal(B.layers([{z:2500,rh:5,temperature:-45}]).length,0);
+const unbounded={...profile,levels:[{z:3000,rh:99,temperature:5},{z:3500,rh:99,temperature:3}]};assert.equal(B.estimate(unbounded,3400,39.67,-105.24,10000000),null);
+console.log('Water/ice reference values, cold ice layers, phase ambiguity, dry/missing profiles and unmatched-base guards passed');

@@ -7,7 +7,8 @@
  function exit(p,v,r){const b=dot(p,v);return -b+Math.sqrt(Math.max(0,b*b+r*r-dot(p,p)));}
  function density(p){const h=Math.max(0,Math.hypot(...p)-R);return [Math.exp(-h/8),Math.exp(-h/1.2)];}
  function sunlight(p,s,aod){const b=dot(p,s),disc=b*b-(dot(p,p)-R*R);if(b<0&&disc>0)return [0,0,0];const length=exit(p,s,TOP),ds=length/20;let r=0,m=0;for(let j=0;j<20;j++){const d=density(add(p,s,(j+.5)*ds));r+=d[0]*ds;m+=d[1]*ds;}return BR.map((k,i)=>Math.exp(-k*r-aod/1.2*BM[i]*m));}
- function radiance(alt,relativeAz,sunAlt,aod=.12,height=0){
+ function radiance(alt,relativeAz,sunAlt,aod=.12,height=0,options=null){
+  if(options?.spectral&&typeof SpectralSky!=='undefined')return SpectralSky.radiance(alt,relativeAz,sunAlt,aod,height,options);
   const p=[0,0,R+Math.max(.001,height/1000)],v=[Math.cos(alt*D)*Math.cos(relativeAz*D),Math.cos(alt*D)*Math.sin(relativeAz*D),Math.sin(alt*D)],s=[Math.cos(sunAlt*D),0,Math.sin(sunAlt*D)];
   const mu=dot(v,s),pr=3/(16*Math.PI)*(1+mu*mu),g=.76,pm=(1-g*g)/(4*Math.PI*Math.pow(1+g*g-2*g*mu,1.5));
   const ds=exit(p,v,TOP)/24,out=[0,0,0];let r=0,m=0;
