@@ -79,9 +79,9 @@ const SatelliteClouds=(()=>{
   const levels=Array.from({length:37},(_,i)=>1000-i*25);
   const fields=levels.flatMap(level=>['relative_humidity','temperature','geopotential_height','wind_speed','wind_direction'].map(name=>name+'_'+level+'hPa'));
   const u=new URL('https://api.open-meteo.com/v1/gfs');
-  Object.entries({latitude:lat,longitude:lon,hourly:fields.join(','),timezone:'GMT',wind_speed_unit:'ms',past_days:2,forecast_days:2}).forEach(([k,v])=>u.searchParams.set(k,v));
+  Object.entries({latitude:lat,longitude:lon,hourly:fields.join(','),timezone:'GMT',wind_speed_unit:'ms',start_hour:new Date(Math.round(target/3600000)*3600000).toISOString().slice(0,16),end_hour:new Date(Math.round(target/3600000)*3600000).toISOString().slice(0,16)}).forEach(([k,v])=>u.searchParams.set(k,v));
   output.textContent='Loading profile for rounded coordinates '+lat+', '+lon+'…';
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
   try{
    const response=await fetch(u.href,{signal:controller.signal});if(!response.ok)throw Error('Profile provider returned '+response.status);
    const d=await response.json(),h=d.hourly;if(!h?.time?.length)throw Error('No profile data.');
