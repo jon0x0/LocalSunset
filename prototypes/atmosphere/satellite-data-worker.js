@@ -23,12 +23,12 @@ function sample(file,name,lats,lons,heights){
 }
 async function region(p){
  if(p.lat<20||p.lat>55||p.lon< -125||p.lon> -65)throw Error('Satellite experiment currently supports the contiguous US');
- const {FS}=await h5wasm.ready,mask=await product('ACM',p.time),top=await product('ACHA',mask.time+300000);if(Math.abs(top.time-mask.time)>900000)throw Error('Satellite product times do not align');
+ const {FS}=await h5wasm.ready;self.postMessage({progress:'Loading satellite cloud patterns…'});const mask=await product('ACM',p.time);self.postMessage({progress:'Loading cloud-top heights…'});const top=await product('ACHA',mask.time+300000);if(Math.abs(top.time-mask.time)>900000)throw Error('Satellite product times do not align');
  const size=96,radius=220,south=p.lat-radius/111.2,north=p.lat+radius/111.2,west=p.lon-radius/(111.2*Math.cos(p.lat*Math.PI/180)),east=2*p.lon-west,lats=[],lons=[];
  for(let y=0;y<size;y++)for(let x=0;x<size;x++){lats.push(south+(north-south)*y/(size-1));lons.push(west+(east-west)*x/(size-1));}
  function read(product,name,heights,twice=false){const filename='cloud.nc';FS.writeFile(filename,product.bytes);let f;try{f=new h5wasm.File(filename,'r');let values=sample(f,name,lats,lons,heights);if(twice)values=sample(f,name,lats,lons,values.map(v=>v??0));return values;}finally{f?.close();FS.unlink(filename);}}
  const ht=read(top,'HT',lats.map(()=>0),true),cloud=read(mask,'BCM',ht.map(v=>v??0));let optical=lats.map(()=>null),codKey=null;
- try{const cod=await product('COD',mask.time+300000);if(Math.abs(cod.time-mask.time)<=900000){optical=read(cod,'COD',ht.map(v=>v??0));codKey=cod.key;}}catch(e){}
+ try{self.postMessage({progress:'Loading cloud optical depth…'});const cod=await product('COD',mask.time+300000);if(Math.abs(cod.time-mask.time)<=900000){optical=read(cod,'COD',ht.map(v=>v??0));codKey=cod.key;}}catch(e){}
  return {schema:'localsunset-satellite-v1',source:'NOAA GOES-19 ABI (browser worker)',observedAt:new Date(mask.time).toISOString(),heightObservedAt:new Date(top.time).toISOString(),products:[mask.key,top.key,codKey],bounds:[west,south,east,north],width:size,height:size,cells:cloud.map((v,i)=>[v===0||v===1?v:null,ht[i]!==null&&ht[i]>=0&&ht[i]<=25000?Math.round(ht[i]):null,optical[i]!==null&&optical[i]>=0&&optical[i]<=1000?Math.round(optical[i]*100)/100:null])};
 }
 self.onmessage=async({data:p})=>{try{self.postMessage({data:await region(p)});}catch(e){self.postMessage({error:e.message});}};

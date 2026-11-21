@@ -143,7 +143,7 @@ const CandidateAtmosphere=(()=>{
   g.fillStyle='#cedbe5';g.font='12px system-ui';g.fillText(stamp(s[0].t),4,h-4);g.fillText(stamp(s.at(-1).t),w-g.measureText(stamp(s.at(-1).t)).width-4,h-4);
   c.setAttribute('aria-label',ChartMarkers.markers(a,currentTime,$('eventMode').value,PeakAnalysis.windowAround(s,a.peak,padding())).map(m=>m.label+' '+stamp(m.t)).join('; '));
  }
- let skyWorker=null,skyPending=null,skyWanted=null,skyCompleted='',skyWorkerFailed=false;
+ let skyWorker=null,skyPending=null,skyWanted=null,skyCompleted='',skyWorkerFailed=false,skyPresented=null,cloudWaitSince=0,lastFrameHealth=null;
  const atmosphereScript=document.currentScript?.src||new URL('../candidate-ui.js',location.href).href;
  function pumpSky(){
   if(skyPending||!skyWanted||skyWanted.key===skyCompleted||skyWorkerFailed)return;
@@ -157,10 +157,11 @@ const CandidateAtmosphere=(()=>{
       const g=skyImage.getContext('2d'),image=g.createImageData(p.width,p.height);
       for(let y=0;y<p.height;y++)for(let x=0;x<p.width;x++){
        const az=p.focus+(x/p.width-.5)*p.fov,alt=Math.min(90,Math.max(.15,(p.base-y/p.height*p.h)/p.scale)),i=(y*p.width+x)*3;
-       const rgb=clouds(Array.from(message.pixels.subarray(i,i+3)),alt,az,p.time,p.sunAlt,true);
+       const baseRGB=Array.from(message.pixels.subarray(i,i+3)),rgb=p.backgroundOnly?baseRGB:clouds(baseRGB,alt,az,p.time,p.sunAlt,true);
        image.data.set([...GlowModel.display(rgb),255],(y*p.width+x)*4);
       }
-      g.putImageData(image,0,0);skyCompleted=message.key;draw();
+      let total=0;for(let k=0;k<image.data.length;k+=4)total+=(image.data[k]+image.data[k+1]+image.data[k+2])/3;lastFrameHealth={frameTime:p.time,sunAltitude:p.sunAlt,meanPixel:total/(p.width*p.height),backgroundOnly:!!p.backgroundOnly,renderedAt:Date.now()};
+      g.putImageData(image,0,0);skyPresented={site:p.site,time:p.time,sunAlt:p.sunAlt};skyCompleted=message.key;draw();
      }
      pumpSky();
     };
@@ -170,10 +171,14 @@ const CandidateAtmosphere=(()=>{
  }
  function renderSky(ctx,v){syncSkyMode();
   if(!$('atmosphereEnabled').checked||document.hidden)return;
-  const p=site();if(typeof SatelliteClouds!=='undefined'){SatelliteClouds.update(currentTime,p.lat,p.lon);if(SatelliteClouds.updating){skyWanted=null;if(skyImage)ctx.drawImage(skyImage,0,0,v.w,v.h);return;}}
+  const p=site();if(typeof SatelliteClouds!=='undefined')SatelliteClouds.update(currentTime,p.lat,p.lon);
   const {focus,scale,base,w,h}=v,s=geometry(Math.round(currentTime/1000)*1000),width=64,height=28;
-  const key=[JSON.stringify(optics()),renderedKey,Math.round(s.alt*5),Math.round(s.az),Math.round(focus),Math.round(w/h*100),Math.round(base),Math.round(scale),Math.round(VIEW_FOV),aod(),result.terrain.observer_m,$('candidateUseWeather').checked,weatherSite,weatherFetchedAt,Math.floor(currentTime/60000),typeof SatelliteClouds==='undefined'?0:SatelliteClouds.revision].join(':');
-  skyWanted={options:optics(),key,focus,scale,base,w,h,width,height,fov:VIEW_FOV,sunAlt:s.alt,sunAz:s.az,aod:aod(),observer:result.terrain.observer_m,time:currentTime};
+  const backgroundOnly=typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating;
+  if(backgroundOnly){if(!cloudWaitSince)cloudWaitSince=Date.now();
+   if(SkyFramePolicy.hold(skyPresented,{site:renderedKey,time:currentTime,sunAlt:s.alt,waitMs:Date.now()-cloudWaitSince})){skyWanted=null;if(skyImage)ctx.drawImage(skyImage,0,0,w,h);return;}
+  }else cloudWaitSince=0;
+  const key=[backgroundOnly,JSON.stringify(optics()),renderedKey,Math.round(s.alt*5),Math.round(s.az),Math.round(focus),Math.round(w/h*100),Math.round(base),Math.round(scale),Math.round(VIEW_FOV),aod(),result.terrain.observer_m,$('candidateUseWeather').checked,weatherSite,weatherFetchedAt,Math.floor(currentTime/60000),typeof SatelliteClouds==='undefined'?0:SatelliteClouds.revision].join(':');
+  skyWanted={backgroundOnly,site:renderedKey,options:optics(),key,focus,scale,base,w,h,width,height,fov:VIEW_FOV,sunAlt:s.alt,sunAz:s.az,aod:aod(),observer:result.terrain.observer_m,time:currentTime};
   pumpSky();if(skyImage)ctx.drawImage(skyImage,0,0,w,h);
  }
  function invalidate(){analysisKey='';skyKey='';skyCompleted='';skyWanted=null;}
@@ -224,7 +229,7 @@ const CandidateAtmosphere=(()=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)ensureWeather();});
  // Keep the graph cursor synced to playback, wheel, clocks and saved views.
  setInterval(requestRefresh,1000);
- return {renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
+ return {diagnostics:()=>({...lastFrameHealth,selectedTime:currentTime,realtime:realTimeView,loading:typeof SatelliteClouds!=='undefined'&&SatelliteClouds.updating}),renderSky,invalidate,refresh,buildAnalysis,refreshProjector,drawCompass,jumpMilestone};
 })();
 
 async function initializeCandidate(){

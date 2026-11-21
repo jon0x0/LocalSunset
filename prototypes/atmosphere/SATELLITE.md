@@ -150,3 +150,10 @@ snapshot and then immediately replace it with the wind-projected version. An
 older in-flight response that needs catch-up stays withheld until the current
 source is ready. Profile failures eventually release the frame with labeled
 assumptions rather than holding forever.
+
+Loading transitions retain a previous frame only for 15 seconds, within two
+minutes of simulated time and 0.25 degree solar altitude. Otherwise the current
+atmospheric background is rendered while cloud data is pending, preventing a
+night frame from persisting into sunrise. Loading text remains visible in
+projector sky-only mode. Pi deployments expose ephemeral render-health metrics
+(time, solar altitude, mean pixel level and loading state), without coordinates.

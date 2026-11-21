@@ -2,6 +2,15 @@
 set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+# A leftover compositor launcher must not reopen this URL in Chromium repeatedly.
+# Keep one supervisor per profile; Chromium otherwise opens another tab and exits,
+# which the restart loop mistakes for a crashed browser.
+mkdir -p "$ROOT_DIR/.cache"
+exec 9>"$ROOT_DIR/.cache/kiosk-supervisor.lock"
+if ! flock -n 9; then
+  echo 'Local Sunset kiosk is already supervised; no second browser was opened.'
+  exit 0
+fi
 if [[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
   echo 'Launch kiosk.sh from a logged-in graphical desktop session.'
   exit 1
