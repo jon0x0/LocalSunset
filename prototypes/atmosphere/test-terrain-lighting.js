@@ -34,3 +34,10 @@ assert.ok(warm[0]/warm[1]>earth[0]/earth[1],'warm sunlight changes reflected hue
 assert.deepEqual(shadow,G.material([0,0,0],1,1,1,0),'opaque cloud removes direct beam, retaining ambient light');
 assert.ok(Math.max(...G.material([10,10,10],1,1,1,1))<.04,'haze does not bleach distant terrain');
 console.log('Earth reflectance, warm light, cloud-blocked illumination and non-white tone mapping passed');
+
+// Advance the sunline immediately using a cached obstruction, without waiting on a worker.
+const obstruction=G.horizon(sunrise,4,4,90,true);
+const before=G.illumination(sunrise,4,4,obstruction-.1,90,obstruction);
+const after=G.illumination(sunrise,4,4,obstruction+.1,90,obstruction);
+assert.ok(after.visibility>before.visibility,'current solar altitude advances penumbra with unchanged shadow horizon');
+console.log('Cached shadow horizon supports immediate sunrise boundary motion');

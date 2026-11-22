@@ -121,8 +121,9 @@ async function applyLocation(){
  const query=$('search').value.trim(),zip=$('zip').value.trim();
  if(!query||(query===currentName&&(!zip||zipFromMatch))){if($('calculateForm').reportValidity())return calculateCurrent();return;}
  if(!$('search').reportValidity()||!$('zip').reportValidity())return;
+ if(typeof RenderMode!=='undefined')RenderMode.beginEdit();
  applyingLocation=true;$('calculate').disabled=true;$('calculate').textContent='Finding…';
- try{await lookupAndApplyLocation();}finally{applyingLocation=false;$('calculate').disabled=calculationPending;if(!calculationPending)$('calculate').textContent='Apply location';}
+ try{await lookupAndApplyLocation();}finally{applyingLocation=false;$('calculate').disabled=calculationPending;if(!calculationPending)$('calculate').textContent='Apply location';if(typeof RenderMode!=='undefined')RenderMode.endEdit();}
 }
 async function lookupAndApplyLocation(){
  const results=$('results'), query=$('search').value.trim(), serial=++searchRequest,generation=locationGeneration;
@@ -157,6 +158,7 @@ $('searchForm').addEventListener('submit',e=>{e.preventDefault();applyLocation()
 $('searchForm').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLocation();}});
 async function calculateCurrent(){
  if(calculationPending)return false;
+ if(typeof RenderMode!=='undefined')RenderMode.beginEdit();
  invalidateResult();calculationPending=true;
  const generation=locationGeneration,input=calculationInput(),key=JSON.stringify(input);
  const preserve=result&&renderedKey===key,keepRealtime=realTimeView||realtimeRequested,previousAzimuth=viewAzimuth;
@@ -179,7 +181,7 @@ async function calculateCurrent(){
   else if(activeDisplaySettings?activeDisplaySettings.live:displayParams.get('auto')==='1')enableLiveSky();
   calculationPending=false;status('Terrain loaded and cached. Drag the view to look around; scroll to change time.');return true;
  }catch(err){calculationPending=false;status((result?'Update failed; keeping the current scene. ':'')+err.message);return false;}
- finally{calculationPending=false;const progress=$('terrainProgress');if(progress){progress.hidden=true;progress.textContent='';}updatePlaceTitle();for(const el of document.querySelectorAll('aside input,aside select,aside button'))el.disabled=false;queueHDMI();}
+ finally{calculationPending=false;const progress=$('terrainProgress');if(progress){progress.hidden=true;progress.textContent='';}updatePlaceTitle();for(const el of document.querySelectorAll('aside input,aside select,aside button'))el.disabled=false;queueHDMI();if(typeof RenderMode!=='undefined')RenderMode.endEdit();}
 }
 $('calculateForm').addEventListener('submit',e=>{e.preventDefault();applyLocation();});
 function showResult(preserveView=false){syncEventControls();updateCountdown();const terrain=result.terrain;$('placeholder').style.display='none';$('time').disabled=false;$('time').max=(result.timeline.at(-1).t-result.timeline[0].t)/1000;$('zone').textContent=result.timezone;$('ground').replaceChildren(document.createTextNode(terrain.ground_m.toFixed(1)+' '),Object.assign(document.createElement('em'),{textContent:'m'}));$('resolution').replaceChildren(document.createTextNode(terrain.pixel_m+' '),Object.assign(document.createElement('em'),{textContent:'m'}));$('sources').textContent=terrain.sources.map(s=>s==='usgs'?'USGS 3DEP':s==='global'?'AWS Terrarium':s).join(' + ')+` · ${terrain.radius_km} km`;$('sunrise').textContent=result.sunrise?formatTime(Date.parse(result.sunrise.utc)):'No sunrise';$('sunriseDate').textContent=result.sunrise?localDate(Date.parse(result.sunrise.utc)):result.status.replaceAll('_',' ');$('sunset').textContent=result.sunset?formatTime(Date.parse(result.sunset.utc)):'No sunset';$('sunsetDate').textContent=result.sunset?localDate(Date.parse(result.sunset.utc)):result.status.replaceAll('_',' ');$('rangeStart').textContent=formatClock(result.timeline[0].t,result.timezone,false);$('rangeEnd').textContent=formatClock(result.timeline.at(-1).t,result.timezone,false);$('assumptions').replaceChildren(...result.assumptions.map(s=>Object.assign(document.createElement('li'),{textContent:s})));$('events').replaceChildren(...result.events.map(e=>Object.assign(document.createElement('span'),{textContent:`${e.kind==='appearance'?'Visible':'Hidden'} · ${formatTime(Date.parse(e.utc))}`})));if(preserveView){setTime(currentTime,true);updatePlay();}else selectEventView();}
@@ -268,7 +270,7 @@ canvas.addEventListener('keydown',event=>{
 function skyDaylight(altitude){const t=Math.max(0,Math.min(1,(altitude+18)/24));return t*t*(3-2*t);}
 function mix(a,b,t){return a.map((v,i)=>Math.round(v+(b[i]-v)*Math.max(0,Math.min(1,t))));}
 function rgb(v){return `rgb(${v.join(',')})`;}
-function draw(){const box=canvas.getBoundingClientRect(),dpr=lowPower?Math.min(1,1280/Math.max(1,box.width)):Math.min(window.devicePixelRatio||1,2),w=box.width,h=box.height;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);if(!result){const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#263c49');g.addColorStop(.6,'#ad8975');g.addColorStop(1,'#303e30');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);return;}
+function draw(){if(typeof RenderMode!=='undefined'&&RenderMode.active&&result){RenderMode.sync();updateSkyLabels(atTime(),viewAzimuth,VIEW_FOV);return;}const box=canvas.getBoundingClientRect(),dpr=lowPower?Math.min(1,1280/Math.max(1,box.width)):Math.min(window.devicePixelRatio||1,2),w=box.width,h=box.height;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);if(!result){const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#263c49');g.addColorStop(.6,'#ad8975');g.addColorStop(1,'#303e30');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);return;}
  const sun=atTime(),focus=viewAzimuth,fov=VIEW_FOV,scale=w/fov,base=h*.64;
  const xFor=az=>w/2+(((az-focus+540)%360)-180)*scale;
  const yFor=alt=>base-alt*scale;
@@ -286,6 +288,9 @@ function draw(){const box=canvas.getBoundingClientRect(),dpr=lowPower?Math.min(1
  if(typeof SceneEffects!=='undefined'){SceneEffects.trees(ctx,result.terrain.horizon,focus,scale,base,w,h,daylight);SceneEffects.glare(ctx,sun,result.terrain.horizon,sx,sy,sr,w,h);}
  // A subtle vignette grounds the atmospheric rendering.
  const vignette=ctx.createRadialGradient(w*.5,h*.45,h*.2,w*.5,h*.5,w*.75);vignette.addColorStop(0,'rgba(0,0,0,0)');vignette.addColorStop(1,'rgba(0,0,0,.24)');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
+ updateSkyLabels(sun,focus,fov);
+}
+function updateSkyLabels(sun,focus,fov){
  $('sunPosition').textContent=`SUN ${sun.az.toFixed(1)}° AZ · ${sun.alt.toFixed(2)}° ALT`;$('compass').textContent=`${focus>=225&&focus<315?'W':focus>=315||focus<45?'N':focus<135?'E':'S'} · ${focus.toFixed(1)}°`;$('viewLabel').textContent=`${localDate(currentTime).toUpperCase()} · ${fov}° FIELD OF VIEW`;
 }
 function animate(now){if(playing&&result){setTime(playbackAnchorTime+(Date.now()-playbackAnchorWall)*30,false,true);if(currentTime>=result.timeline.at(-1).t){playing=false;updatePlay();}}lastFrame=now;if(lowPower)setTimeout(()=>requestAnimationFrame(animate),66);else requestAnimationFrame(animate);}

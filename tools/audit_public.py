@@ -29,7 +29,7 @@ def audit(files):
         if any(value in text for value in private):failures.append(name+': local location/host fingerprint')
         if re.search(r'\b(?:d:|c:)[/\\](?:users|t7_recover)',text):failures.append(name+': workstation path')
         if re.search(r'-----begin (?:rsa |ec |openssh )?private key-----|\b(?:ghp_|github_pat_)[a-z0-9_]{20,}|\bAKIA[A-Z0-9]{16}\b',text,re.I):failures.append(name+': credential-like value')
-        if re.search(r'(?:ssid|psk|wifi_password)\s*[=:]\s*[\"\'][^\"\']{3,}[\"\']',text):failures.append(name+': Wi-Fi configuration')
+        if re.search(r'\b(?:ssid|psk|wifi_password)\b\s*[=:]\s*[\"\'][^\"\']{3,}[\"\']',text):failures.append(name+': Wi-Fi configuration')
     if failures:raise SystemExit('Public source audit failed:\n'+'\n'.join(failures))
     return len(files)
 if __name__=='__main__':print('PASS: '+str(audit(public_files()))+' public files contain no detected private local location fingerprints or photos.')
