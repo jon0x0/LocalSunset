@@ -7,6 +7,3 @@
 - Address/place services: US Census Geocoder, Zippopotam.us, Photon/OpenStreetMap contributors, and Open-Meteo geocoding (https://open-meteo.com/en/docs/geocoding-api), using GeoNames data. Provider availability and usage policies apply.
 
 Astronomy Engine and HYG star catalog notices are in THIRD-PARTY.md. This file does not assign a license to the original application code.
-
-
-Three.js 0.187.0 (MIT), vendored ES modules for the experimental GPU 3D terrain mode. Source: https://github.com/mrdoob/three.js and the npm three@0.187.0 package; package SHA-512 integrity verified at download. License: vendor/THREE-LICENSE.md.

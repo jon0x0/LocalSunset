@@ -176,7 +176,6 @@ const CandidateAtmosphere=(()=>{
   if(!calculationPending&&!/failed|error/i.test($('status').textContent))$('projectionStatus').textContent=realTimeView?'Live sky follows the current clock.':'Preview · Swipe through time or select Realtime.';
   $('projectionNote').textContent=timing.event?stamp(timing.event.t)+' · '+result.timezone:'No remaining milestones on the selected date.';
   $('projectorBestWindow').textContent='Recommended '+mode+' viewing window: '+(window?stamp(window[0])+' – '+stamp(window[1]):'Unavailable');
-  const events=tableEvents(a,window,mode),key=JSON.stringify([events,result.timezone]),list=$('projectorEventTimes');if(list&&list.dataset.events!==key){list.dataset.events=key;list.replaceChildren(...events.map(event=>{const item=document.createElement('div'),label=document.createElement('dt'),value=document.createElement('dd');label.textContent=event.label;value.textContent=Number.isFinite(event.t)?stamp(event.t):'—';item.append(label,value);return item;}));}
  }
  function refresh(){if(result&&renderedKey&&typeof SatelliteClouds!=='undefined'){const p=JSON.parse(renderedKey);SatelliteClouds.update(realTimeView?Date.now():currentTime,p.lat,p.lon);}ensureWeather();syncSkyMode();refreshCloudEstimate();
   const a=buildAnalysis();if(!a)return;
@@ -241,7 +240,7 @@ const CandidateAtmosphere=(()=>{
    skyPending=skyWanted;skyWorker.postMessage(skyPending);
   }catch(e){skyWorkerFailed=true;skyPending=null;status('Atmosphere worker unavailable; using the base sky.');}
  }
- function renderSky(ctx,v){if(typeof RenderMode!=='undefined'&&RenderMode.active){RenderMode.sync();return;}syncSkyMode();
+ function renderSky(ctx,v){syncSkyMode();
   if(!$('atmosphereEnabled').checked||document.hidden)return;
   const p=site();if(typeof SatelliteClouds!=='undefined')SatelliteClouds.update(currentTime,p.lat,p.lon);
   const {focus,scale,base,w,h}=v,s=geometry(Math.round(currentTime/1000)*1000),width=64,height=28;
@@ -267,7 +266,7 @@ const CandidateAtmosphere=(()=>{
  canvas.addEventListener('pointerdown',e=>{if($('candidateGesture').value!=='time'||!result)return;if(!e.isPrimary){e.stopImmediatePropagation();return;}if(e.button!==0)return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY,t:realTimeView?Date.now():currentTime,active:false};e.stopImmediatePropagation();},{capture:true});
  canvas.addEventListener('pointermove',e=>{if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(!gesture.active){if(Math.max(Math.abs(dx),Math.abs(dy))<8)return;if(Math.abs(dy)>Math.abs(dx)){gesture=null;return;}gesture.active=true;playing=false;realTimeView=false;realtimeRequested=false;updatePlay();canvas.setPointerCapture(e.pointerId);}const a=buildAnalysis();if(a.samples.length)setTime(gesture.t-dx/Math.max(1,canvas.getBoundingClientRect().width)*(a.samples.at(-1).t-a.samples[0].t));requestRefresh();},{capture:true});
  function finish(e){if(!gesture||gesture.id!==e.pointerId)return;e.stopImmediatePropagation();gesture=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);requestRefresh();}
- $('candidateGesture').onchange=()=>{gesture=null;document.querySelectorAll('[data-gesture]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gesture===$('candidateGesture').value)));canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';if(typeof RenderMode!=='undefined')RenderMode.sync();};$('candidateGesture').onchange();
+ $('candidateGesture').onchange=()=>{gesture=null;document.querySelectorAll('[data-gesture]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.gesture===$('candidateGesture').value)));canvas.style.touchAction=$('candidateGesture').value==='time'?'pan-y':'none';document.querySelector('.view-tools > span').textContent=$('candidateGesture').value==='time'?'SWIPE TO CHANGE TIME · SELECT PAN MODE TO LOOK AROUND':'DRAG TO PAN · PINCH TO ZOOM · SCROLL TO CHANGE TIME';};$('candidateGesture').onchange();
  for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,finish,{capture:true});
  const weatherPreference='localsunset.atmosphere.candidate.weatherEnabled',weatherCache='localsunset.atmosphere.candidate.weatherCache.v4';
  let weatherRequest=null,weatherRequestId=0,weatherPendingKey='',weatherFetchedAt=0;

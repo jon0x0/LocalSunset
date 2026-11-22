@@ -317,20 +317,3 @@ body.projector.sky-only.sky-controls-awake,body.projector.sky-only.sky-controls-
 
 /* Status text is a page-scroll surface, never a pass-through to the scenery. */
 .sky-status-strip,.sky-status-strip *,.projector-hud,.projector-hud *{pointer-events:auto;touch-action:pan-y}
-
-.projector-event-times{display:none}
-body.projector .projector-event-times{display:flex;grid-column:1/-1;flex-wrap:wrap;gap:6px 24px;margin:4px 0 0;padding:6px 0;border-top:1px solid #b7c8bc55}
-.projector-event-times>div{display:grid;gap:2px;min-width:100px}
-body.projector .projector-event-times dt{font-size:clamp(10px,1vw,16px);color:#c3d1ca}
-body.projector .projector-event-times dd{margin:0;font-size:clamp(13px,1.4vw,22px);font-variant-numeric:tabular-nums;color:#fff1d4}
-@media(max-width:760px),(max-height:540px){body.projector .projector-event-times{gap:4px 10px}.projector-event-times>div{min-width:85px}body.projector .projector-event-times dt{font-size:10px}body.projector .projector-event-times dd{font-size:13px}}
-
-.render-mode-control{display:flex;align-items:center;gap:5px;margin:0;font:11px system-ui;letter-spacing:0}.render-mode-control select{width:auto;max-width:190px;padding:5px;font-size:12px}#renderModeStatus{flex-basis:100%;font:11px/1.4 system-ui;color:#c5c8b5}.gpu-scene-frame{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:1;background:#172a31}body[data-render-mode=gpu] #view{visibility:hidden}body[data-render-mode=gpu] .scene-top{z-index:2}body[data-render-mode=gpu] .sky-bearing-strip{z-index:2}
-@media(max-width:760px),(max-height:540px){.render-mode-control select{min-height:44px;font-size:14px}}
-
-.gpu-settings{flex-basis:100%;font:12px/1.5 system-ui;border-top:1px solid #ffffff20;padding-top:6px}
-.gpu-settings>summary{cursor:pointer;min-height:32px;align-content:center;color:#c5c8b5}
-.gpu-settings[open]{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.gpu-settings[open]>summary{flex-basis:100%}
-.gpu-settings #renderModeStatus{display:block;margin-top:4px}
-@media(pointer:coarse){.gpu-settings>summary{min-height:44px}}

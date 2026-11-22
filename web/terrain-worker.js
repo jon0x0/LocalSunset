@@ -40,9 +40,9 @@ self.onmessage=async event=>{
  try{
   if(event.data.kind==='mesh'){
    const {lat,lon}=input;if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>80||Math.abs(lon)>180)throw Error('Lighting mesh supports latitudes within ±80°.');
-   const detail=input.quality==='gpu-detail',zoom=detail?13:Math.max(9,Math.min(12,input.zoom||10)),source=input.source||'auto',key=(detail?'lighting-mesh:gpu-detail:v1:':'lighting-mesh:v3:')+JSON.stringify([lat,lon,zoom,source]);let mesh=await WebCache.get(key);
+   const zoom=Math.max(9,Math.min(12,input.zoom||10)),source=input.source||'auto',key='lighting-mesh:v3:'+JSON.stringify([lat,lon,zoom,source]);let mesh=await WebCache.get(key);
    if(!mesh){
-    progress('Loading terrain surfaces for lighting…');const provider=new Tiles(lat,lon,zoom,source),size=detail?257:193,span=detail?12800:60000,axis=Array.from({length:size},(_,i)=>{if(detail)return (i-128)*50;const d=i-96,a=Math.abs(d);return Math.sign(d)*(a<=64?a*125:8000+(a-64)*687.5);}),points=[];
+    progress('Loading terrain surfaces for lighting…');const provider=new Tiles(lat,lon,zoom,source),size=193,span=60000,axis=Array.from({length:193},(_,i)=>{const d=i-96,a=Math.abs(d);return Math.sign(d)*(a<=64?a*125:8000+(a-64)*687.5);}),points=[];
     for(let y=0;y<size;y++)for(let x=0;x<size;x++){const east=axis[x],north=axis[y];points.push(BrowserTerrain.destination(lat,lon,Math.atan2(east,north)*180/Math.PI,Math.hypot(east,north)));}
     const values=await provider.sampleMany(points);if(values.some(v=>!Number.isFinite(v)||v< -12000||v>10000))throw Error('Lighting mesh contains missing elevations');
     mesh={size,span,axis,heights:Array.from(values),lat,lon,source:[...provider.used].join(', ')};await WebCache.put(key,mesh,values.length*4);

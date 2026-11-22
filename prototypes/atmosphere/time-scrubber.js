@@ -3,7 +3,7 @@
  const move=(anchor,pixels,width,hours=2)=>anchor-pixels/Math.max(1,width)*hours*3600000;
  function day(t,zone){const parts=new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(t)),get=type=>parts.find(p=>p.type===type).value;return get('year')+'-'+get('month')+'-'+get('day');}
  const covers=(result,t)=>!!result&&t>=result.timeline[0].t&&t<result.timeline.at(-1).t;
- const policy={move,day,covers};root.TimeScrubber=policy;if(typeof module!=='undefined')module.exports=policy;
+ const policy={move,day,covers};if(typeof module!=='undefined')module.exports=policy;
  if(typeof document==='undefined')return;
  const strip=document.createElement('section');strip.className='time-scrubber';strip.setAttribute('aria-label','Continuous time control');
  const heading=document.createElement('div'),label=document.createElement('span'),speed=document.createElement('select');heading.className='time-scrubber-heading';
@@ -37,7 +37,6 @@
   }finally{busy=false;update();}
  }
  function seek(t,immediate=false){if(!result||!Number.isFinite(t))return;playing=false;realTimeView=false;realtimeRequested=false;updatePlay();wanted=t;clearTimeout(inputTimer);if(immediate)apply();else inputTimer=setTimeout(apply,120);update();}
- policy.seek=seek;policy.selected=selected;
  track.addEventListener('pointerdown',e=>{if(!e.isPrimary||e.button!==0||!result)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,time:selected(),offset:texture,active:false};});
  track.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.active){if(Math.max(Math.abs(dx),Math.abs(dy))<6)return;if(Math.abs(dy)>Math.abs(dx)){drag=null;return;}drag.active=true;track.setPointerCapture(e.pointerId);}e.preventDefault();texture=drag.offset+dx;track.style.backgroundPositionX=texture+'px';seek(move(drag.time,dx,track.getBoundingClientRect().width,Number(speed.value)));});
  function finish(e){if(!drag||e.pointerId!==drag.id)return;drag=null;if(track.hasPointerCapture(e.pointerId))track.releasePointerCapture(e.pointerId);clearTimeout(inputTimer);apply();}

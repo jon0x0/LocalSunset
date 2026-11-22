@@ -26,11 +26,5 @@
   const rgb=direct.map((v,i)=>v/(4*Math.PI)+diffuse[i]*.8);if(cloudCache.size>512)cloudCache.clear();cloudCache.set(key,rgb);return rgb;
  }
  function directLight(sunAlt,height,aod=.12,options={}){const p=[0,0,R+Math.max(.001,height/1000)],s=[Math.cos(sunAlt*D),0,Math.sin(sunAlt*D)];return toRGB(transmission(p,s,aod,options.ozoneDU??300).map((v,i)=>v*solar[i]));}
- // Cosine-weighted hemispheric irradiance using Gauss quadrature in sin(elevation).
- // Azimuths are relative to the Sun; no camera-heading dependence.
- function skyIrradiance(sunAlt,height,aod=.12,options={}){const out=[0,0,0],nodes=[.1127016654,.5,.8872983346],weights=[5/18,8/18,5/18];
-  for(let j=0;j<3;j++)for(const az of [0,90,180,270]){const rgb=radiance(Math.asin(nodes[j])/D,az,sunAlt,aod,height,options);for(let c=0;c<3;c++)out[c]+=rgb[c]*nodes[j]*weights[j]*Math.PI/2;}
-  return out;
- }
- const api={skyIrradiance,directLight,radiance,cloudLight,toRGB,wavelengths:W,ozone};root.SpectralSky=api;if(typeof module!=='undefined')module.exports=api;
+ const api={directLight,radiance,cloudLight,toRGB,wavelengths:W,ozone};root.SpectralSky=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
